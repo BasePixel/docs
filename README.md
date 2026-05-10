@@ -1,55 +1,119 @@
-# Mintlify Starter Kit
+# BasePixel Documentation
 
-Use the starter kit to get your docs deployed and ready to customize.
+Public documentation for BasePixel, deployed via [Mintlify](https://mintlify.com).
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+Live at: [docs.basepixel.io](https://docs.basepixel.io)
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
+## Stack
 
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
+- **Mintlify** for hosting and rendering
+- **MDX** for content (markdown + React components)
+- All content is in this repository
 
-## AI-assisted writing
+## Local development
 
-Set up your AI coding tool to work with Mintlify:
+Install Mintlify CLI:
 
 ```bash
-npx skills add https://mintlify.com/docs
-```
-
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
-
-See the [AI tools guides](/ai-tools) for tool-specific setup.
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
-
-```
 npm i -g mint
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+Run locally from this directory:
 
-```
+```bash
 mint dev
 ```
 
-View your local preview at `http://localhost:3000`.
+Opens at `http://localhost:3000` with hot reload.
 
-## Publishing changes
+## Project structure
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+```
+basepixel-docs/
+├── docs.json                 # Mintlify config (navigation, theme, branding)
+├── favicon.ico
+├── logo/
+│   ├── basepixel-lockup-light.svg   # White text for dark mode
+│   └── basepixel-lockup-dark.svg    # Black text for light mode
+├── images/
+│   └── banner-hero.png
+├── introduction/
+│   ├── what-is-basepixel.mdx
+│   ├── how-it-works.mdx
+│   └── why-ai.mdx
+├── play/
+│   ├── mint.mdx
+│   ├── action-mode.mdx
+│   ├── battle.mdx
+│   └── redeem.mdx
+├── ai/
+│   ├── overview.mdx
+│   ├── how-ai-fights.mdx
+│   └── v1-roadmap.mdx
+└── resources/
+    ├── faq.mdx
+    ├── contracts.mdx
+    └── links.mdx
+```
 
-## Need help?
+## Deploying
 
-### Troubleshooting
+### First-time setup
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+1. Push this directory to a GitHub repo (e.g. `basepixel/docs`)
+2. Sign up at [mintlify.com](https://mintlify.com)
+3. Connect your GitHub account
+4. Import the repo
+5. Mintlify auto-detects `docs.json` and deploys
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+### Custom domain
+
+Set up `docs.basepixel.io`:
+
+1. In Mintlify dashboard → Domain settings
+2. Add `docs.basepixel.io`
+3. Add DNS CNAME: `docs` → `cname.mintlify.app`
+4. Wait for SSL provisioning (~5 min)
+
+### Updates
+
+Push to `main` branch → Mintlify auto-deploys in ~30 seconds.
+
+## Editing content
+
+All content is in `.mdx` files. MDX = Markdown + React components.
+
+### Available components
+
+- `<Card>`, `<CardGroup>` — feature highlights
+- `<Steps>`, `<Step>` — numbered workflows
+- `<Note>`, `<Tip>`, `<Warning>` — callouts
+- `<Accordion>`, `<AccordionGroup>` — collapsible sections
+- `<Tab>`, `<Tabs>` — tabbed content
+- `<CodeGroup>` — multi-language code blocks
+
+Full reference: [mintlify.com/docs/components](https://mintlify.com/docs/components)
+
+### Style guide
+
+- **Lead with the answer.** Don't bury key info under intros.
+- **Short paragraphs.** Aim for 3-5 sentences max.
+- **Tables for comparisons.** Lists for steps. Cards for choices.
+- **One H2 per section.** Don't nest H3s deeply.
+- **Action verbs.** "Mint a pixel" not "Pixel minting."
+- **Skim-friendly.** Most readers won't read every word.
+
+## Content updates needed before launch
+
+- [ ] Replace placeholder Diamond + facet addresses in `resources/contracts.mdx`
+- [ ] Replace placeholder Twitter / Discord / GitHub URLs in `docs.json` and `resources/links.mdx`
+- [ ] Add real audit reports to contracts page (or remove the section if no audit shipped)
+- [ ] Add screenshots of the actual UI to play guides
+- [ ] Sync `PIXEL_ABI` snippet in `resources/contracts.mdx` against the published artifact
+
+## Changelog
+
+Track major doc updates here:
+
+- **2026-05-04** — Sync to current contract surface: dropped Genesis tier (not implemented), updated 16-color palette → uint24 RGB, corrected facet list (6 facets, not 10), `mint(tokenId, faction, color)` signature, real event names (`PixelAttacked` etc.).
+- **2026-05-03** — Initial MVP documentation.

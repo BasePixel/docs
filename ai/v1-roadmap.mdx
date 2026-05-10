@@ -1,0 +1,125 @@
+---
+title: "Roadmap"
+description: "From manual MVP to autonomous agent ecosystem"
+---
+
+A pragmatic, honest roadmap. **Dates are estimates, not commitments.** We'll ship as fast as quality allows.
+
+## MVP (now)
+
+**Status:** Live on Base mainnet
+
+What works:
+- Mint pixels (1,000,000 total)
+- Choose Red or Blue faction
+- Toggle Action / Unaction modes
+- Manual attack and defense
+- 24-hour redemption window
+- Pixel art in Unaction mode (full 24-bit RGB, on-chain)
+- Real ERC-721 NFTs with on-chain SVG metadata, visible on OpenSea
+
+What doesn't work yet:
+- AI agents (manual play only)
+- Faction coordination
+- Alliance / referral systems
+- Tournament modes
+
+## V1.1: Agents go live (~30-60 days)
+
+The core AI release. After we've validated the manual game loop, we ship autonomous agents.
+
+**Target features:**
+
+<CardGroup cols={2}>
+  <Card title="Tier 1 agents" icon="list-check">
+    Rule-based agents configured in our UI. No coding required. Free to run.
+  </Card>
+  <Card title="Tier 2 agents" icon="brain">
+    LLM-assisted agents using your OpenAI/Anthropic API. Bring your own model.
+  </Card>
+  <Card title="Session keys" icon="key">
+    ERC-4337 session key delegation. Bounded permissions. Daily spend caps.
+  </Card>
+  <Card title="Agent SDK" icon="code">
+    TypeScript SDK with full contract bindings. Event subscriptions. Simulation mode.
+  </Card>
+</CardGroup>
+
+**What we'll learn from MVP that shapes V1.1:**
+
+- Which game balance tweaks are needed
+- What strategies humans are using (so we can codify Tier 1 templates)
+- How long battles actually take (informs agent tick frequency)
+- What kinds of attacks need defending against (informs default rules)
+
+## V1.2: Coordination (~3 months)
+
+Multi-player agent mechanics. Where the war stops being individual and becomes collective.
+
+**Target features:**
+
+- **Alliances.** Pool pixels with friends; share rewards proportionally
+- **Faction commanders.** A single agent coordinates 10-100 players' pixels
+- **Strategy templates.** Pre-built configurations for common playstyles
+- **Adjacency bonuses.** Pixels next to friendly faction get +5 defense (incentivizes clustering)
+- **Reinforcement.** Send troops from your other pixels to bolster a defender
+- **Vassal mechanics.** Conquered pixels keep partial ownership rights for the original owner
+
+This is where BasePixel goes from "personal RTS" to "geopolitical sim."
+
+## V1.3: Economy (~5 months)
+
+Things start getting interesting economically.
+
+**Target features:**
+
+- **Strategy marketplace.** Sell or rent your proven agent strategy. Revenue share with users.
+- **Strategy NFTs.** Mint a successful strategy as a tradeable NFT. Buyer runs it for themselves.
+- **Referral system.** Bring a friend, earn a cut of their mints (with anti-Sybil protection)
+- **Treasury governance.** Community input on how the platform fee is spent
+
+## V2.0: New territory (~9 months)
+
+Bigger structural changes. By this point we'll have data on what works and what doesn't.
+
+**Possible directions:**
+
+- **Seasons.** Maps reset every 3-6 months. Old territory archived as historical NFTs. New territory means new opportunities.
+- **Multi-map.** Beyond the 1M-pixel main map, smaller "battlegrounds" for specific events
+- **Tournament mode.** Bracketed agent-vs-agent competitions with prize pools
+- **Cross-game agents.** Strategies that port to other onchain games
+
+## Things we're explicitly NOT planning
+
+To be clear about what BasePixel isn't:
+
+- **No project token** in the foreseeable future. The economy runs on ETH. We don't want to introduce token speculation that distorts gameplay.
+- **No play-to-earn farming.** Bounties are zero-sum (one player's gain is another's loss). This isn't an inflation-driven points system.
+- **No NFT minting beyond pixels.** No PFPs, no companions, no land plots. The pixel IS the asset.
+- **No PvE.** No bots to grind. No quests to complete. Other players are the only opponents.
+- **No "premium" features paid in tokens.** All players use the same contracts.
+
+## How priorities can shift
+
+This roadmap will change based on:
+
+1. **What players actually do.** If 80% of MVP players are pure artists (no fighting), V1.1 might prioritize art tools over agents.
+2. **Security findings.** Audit results may delay features.
+3. **Base network changes.** New L2 features (account abstraction improvements, gas reductions) may unlock new mechanics.
+4. **Community feedback.** Discord, Twitter, and on-chain behavior all inform priorities.
+
+We'll publish a quarterly update on basepixel.io and Twitter showing actual progress vs this plan.
+
+## Stay updated
+
+<CardGroup cols={3}>
+  <Card title="Twitter" icon="x-twitter" href="https://twitter.com/basepixel">
+    Daily updates and battles
+  </Card>
+  <Card title="Discord" icon="discord" href="https://discord.gg/basepixel">
+    Strategy chat and dev Q&A
+  </Card>
+  <Card title="GitHub" icon="github" href="https://github.com/basepixel">
+    Open source SDK and contracts
+  </Card>
+</CardGroup>

@@ -1,0 +1,98 @@
+---
+title: "Redeem: Reclaim lost pixels"
+description: "Lost a pixel? Pay the redeem price and take it back. 24 hours only."
+---
+
+Losing a pixel isn't the end. **You have 24 hours to reclaim any pixel you previously owned**, by paying the redeem price.
+
+## How redemption works
+
+If your pixel was conquered, the contract remembers you as the **previous owner**. For 24 hours from the moment the battle resolved, you have a unique right: pay 0.0005 ETH and the pixel returns to your wallet. The current holder cannot refuse — redemption is enforced by the contract.
+
+```solidity
+function redeem(uint256 tokenId) external payable;
+// Requires:
+//   msg.sender == pixel.previousOwner
+//   block.timestamp - lastTransferTime <= 86400
+//   msg.value == 0.0005 ETH
+```
+
+The full 0.0005 ETH goes to the **current holder** as compensation — there's no split, no bounty refill, no team fee on redeem. From the holder's perspective: they captured the pixel and earned 0.0005 ETH if the loser bought it back, or kept the pixel if they didn't.
+
+## Step-by-step
+
+<Steps>
+  <Step title="Spot it on your account page">
+    On basepixel.io, your account page lists pixels you've lost in the last 24 hours, with a countdown timer for each.
+  </Step>
+  <Step title="Click 'Redeem'">
+    A confirmation modal opens, showing the cost (0.0005 ETH) and where it goes.
+  </Step>
+  <Step title="Approve the transaction">
+    Sign in your wallet. The pixel returns to your wallet immediately.
+  </Step>
+  <Step title="Re-arm before re-fighting">
+    The pixel comes back in **Unaction mode with no committed layout**. To put it back into the war you need to re-commit a formation and toggle Action mode on.
+  </Step>
+</Steps>
+
+## What the contract clears on redeem
+
+When the pixel transfers back to you, the contract resets several fields so the redeem cycle can't be exploited:
+
+- **`actionEnabled = false`** — the pixel is in Unaction mode, immune until you opt back in.
+- **`layoutHashes[tokenId] = 0`** — your old layout commitment is wiped (it would be stale anyway after a wallet swap). You re-commit before fighting again.
+- **`previousOwner = address(0)`** — closes the redeem cycle. Without this, the ex-winner would have a fresh 24h redeem window against you, and the back-and-forth could loop indefinitely. Battle losses are the only path into the redeem flow, by design.
+
+These clears are also applied on every transfer (battle settlement, marketplace sale, manual transfer) — the new owner of any pixel always starts with a clean slate.
+
+## The 24-hour countdown
+
+The redemption window is strict: **exactly 24 hours from the last transfer**. After that, the right expires forever.
+
+The window resets on every transfer. So if Alice loses a pixel to Bob, Bob holds it for 12 hours, then Charlie conquers Bob:
+
+- Alice's redeem right is **gone** (`previousOwner` was overwritten when Bob → Charlie).
+- Bob now has a fresh 24h window to redeem from Charlie.
+
+Only the **most recent previous owner** ever has the redemption right.
+
+## Strategic considerations
+
+### When to redeem
+
+Redeem if:
+
+- The pixel has sentimental value (your first pixel, an early-mint pixel, part of an art piece)
+- It's strategically located (frontier defense, key territory you've already invested in)
+- You're confident in your formation matchup with whoever's in the area
+
+Don't redeem if:
+
+- It's a random pixel with no strategic value — minting a new one elsewhere is probably better
+- You'll just lose it again immediately to the same attacker
+
+### From the attacker's side
+
+If you just conquered a pixel, expect the previous owner to redeem within hours. Plan around it:
+
+- **Don't fortify** a freshly conquered pixel — it might leave your wallet at any moment in the next 24h.
+- The 0.0005 ETH redeem fee is your consolation if it does get bought back. You don't need to over-defend.
+
+## Edge cases
+
+### What if I'm the only owner the pixel ever had?
+
+If you minted it and it was conquered, the original mint counts — you have the redemption right.
+
+### Can someone block my redemption?
+
+No. Redemption is enforced by the contract. The current holder cannot prevent it. The one exception: if the pixel is **currently locked in another battle** (`activeBattleOf[id] != 0`), redeem reverts until that battle resolves. The window doesn't pause, though, so contested pixels can lapse.
+
+### What if I redeem and immediately lose it again?
+
+Your redemption right resets — you have a fresh 24 hours from the new loss. In theory you could redeem indefinitely, but each redemption costs 0.0005 ETH, so it's only economical for valuable pixels.
+
+<Card title="The full game loop" icon="repeat" href="/introduction/how-it-works">
+  Review how mint → battle → redeem fits together
+</Card>

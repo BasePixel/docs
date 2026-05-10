@@ -1,0 +1,102 @@
+---
+title: "Mint your first pixel"
+description: "Buy a pixel, pick a faction, join the war"
+---
+
+Minting is how you enter BasePixel. Each pixel is a unique ERC-721 NFT with a fixed coordinate on the 1000×1000 map.
+
+## Before you start
+
+You need:
+
+- A Base-compatible wallet ([Coinbase Wallet](https://www.coinbase.com/wallet), [MetaMask](https://metamask.io/), [Rainbow](https://rainbow.me/), etc.)
+- At least **0.0015 ETH** on Base (0.001 for the pixel + ~0.0005 for gas)
+- A few minutes
+
+If you don't have ETH on Base yet, [bridge from Ethereum](https://bridge.base.org/) or buy directly through Coinbase.
+
+## Step-by-step
+
+<Steps>
+  <Step title="Open BasePixel">
+    Go to [basepixel.io](https://basepixel.io). Connect your wallet using the button in the top-right.
+  </Step>
+  <Step title="Find an empty pixel">
+    The map shows the entire 1,000,000-pixel battlefield. Empty pixels are dim gray. Red and Blue pixels are already owned.
+
+    Use your mouse wheel or pinch to zoom in. Drag to pan around. Find a spot that feels right.
+  </Step>
+  <Step title="Click the pixel">
+    A panel opens on the right showing the pixel's coordinates and current state (empty / owned / contested). For empty pixels, you'll see a Mint option.
+  </Step>
+  <Step title="Pick your faction">
+    Choose **Red** or **Blue**. This is permanent for this pixel — you can't switch factions later. Look at the global stats on top to see which side needs more soldiers.
+
+    <Tip>
+    Strategy tip: minting deep inside friendly territory is safer (your neighbors defend you). Minting on the frontier is riskier but more strategic — you become a forward outpost.
+    </Tip>
+  </Step>
+  <Step title="Confirm and pay 0.001 ETH">
+    Click **Mint Pixel**. Your wallet pops up. Approve the transaction.
+
+    Wait ~2 seconds for Base to confirm. Done.
+  </Step>
+  <Step title="Find your pixel in your wallet">
+    The pixel is now an NFT in your wallet. View it on [OpenSea](https://opensea.io/) or in your "My Pixels" page on basepixel.io.
+  </Step>
+</Steps>
+
+## What you get
+
+Your minted pixel is an ERC-721 NFT with these properties:
+
+| Property | Value |
+|---|---|
+| **Coordinates** | Permanent (e.g. 458, 312) |
+| **Faction** | Permanent (Red or Blue) |
+| **Insurance pool** | 0.0005 ETH (locked in the pixel — captured by the winner of any battle) |
+| **Layout** | None at mint — commit a 9-unit formation before fighting |
+| **Status** | Unaction (default — you decide when to fight) |
+| **Color** | Faction color in Action mode; any 24-bit RGB in Unaction mode |
+
+## Where the money goes
+
+When you mint for 0.001 ETH:
+
+```
+0.001 ETH (mint price)
+   ├── 0.0005 ETH → Insurance pool (locked in this pixel)
+   └── 0.0005 ETH → Platform (ops + dev)
+```
+
+The 0.0005 ETH in the insurance pool is what makes your pixel valuable. **If someone conquers your pixel, they take this ETH along with the NFT.** If you defend successfully (or never enter Action mode), it stays bonded to the pixel.
+
+## What happens next?
+
+You just minted. By default, your pixel is in **Unaction mode** — invincible but inert. You have three choices:
+
+<CardGroup cols={3}>
+  <Card title="Stay in Unaction" icon="palette" href="/play/action-mode">
+    Use it as a canvas. Paint it any color. Collect more pixels and build art.
+  </Card>
+  <Card title="Switch to Action" icon="swords" href="/play/battle">
+    Join the war. You can attack enemies and earn bounties — but you're also vulnerable.
+  </Card>
+  <Card title="Mint more pixels" icon="plus" href="/play/mint">
+    Build a base. Multiple pixels means a stronger position. Some players own thousands.
+  </Card>
+</CardGroup>
+
+## Costs at a glance
+
+| Action | Cost | Refundable? |
+|---|---|---|
+| Mint a pixel | 0.001 ETH | Stays in the pixel as bounty |
+| Toggle Action ↔ Unaction | Free (gas only) | — |
+| Change pixel color | Free (gas only, Unaction only) | — |
+| Attack an enemy pixel | 0.0005 ETH | Yes, you take the conquered pixel's bounty |
+| Redeem a lost pixel | 0.0005 ETH | Partial — half goes to the conqueror as compensation |
+
+<Note>
+All costs are denominated in ETH on Base. There's no native token to buy. You don't need to hold any project token to play.
+</Note>

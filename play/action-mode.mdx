@@ -1,0 +1,106 @@
+---
+title: "Action vs Unaction mode"
+description: "Two modes, one map. You decide when to fight."
+---
+
+Every pixel has a switch: **Action** or **Unaction**. This is the most important strategic decision you'll make.
+
+## The two modes
+
+<CardGroup cols={2}>
+  <Card title="Action mode" icon="swords">
+    **You're at war.**
+
+    - ✓ Can attack enemy pixels
+    - ✓ Can earn bounty rewards
+    - ✗ Can be attacked by enemies
+    - ✗ Cannot change pixel color
+
+    The bounty in your pixel is at stake. Defend it or lose it.
+  </Card>
+  <Card title="Unaction mode" icon="palette">
+    **You're at peace.**
+
+    - ✗ Cannot attack
+    - ✗ Cannot earn bounties
+    - ✓ Immune to attacks
+    - ✓ Can paint any 24-bit RGB color
+
+    Use it for collecting, art-making, or just holding a position safely.
+  </Card>
+</CardGroup>
+
+## Default state
+
+When you mint, your pixel starts in **Unaction mode**. This protects new players from immediate attacks. You have to actively flip the switch to Action.
+
+<Tip>
+This means a lot of the map is "safe" pixels held by collectors and artists. The active war happens between Action-mode pixels.
+</Tip>
+
+## How to toggle
+
+Open your pixel's panel. Click the toggle. Approve the transaction (gas only, ~$0.01 on Base).
+
+Before you can flip to Action mode you also need to **commit a layout** — open the formation modal from the side panel, place 3 Warriors / 3 Archers / 3 Shields across your 3×3 grid, and submit. The plaintext stays in your browser (and a signature-gated cache on the Engine for cross-device restore); only the keccak256 commitment goes on-chain. Once a layout is committed and Action is enabled, your pixel is eligible to attack and to be attacked.
+
+You can switch as many times as you want. There's no cooldown.
+
+<Warning>
+**Transfer / redeem resets you.** Whenever a pixel changes hands — battle settlement, marketplace transfer, or a redeem buyback — the contract clears the layout commitment (`layoutHashes[id] = 0`) and forces `actionEnabled = false`. The new owner has to re-commit a layout and explicitly re-enable Action mode before the pixel can fight again. This is the contract enforcing it, not just a UI pattern, so a freshly-acquired pixel is never silently exposed.
+</Warning>
+
+## Painting in Unaction mode
+
+Unaction pixels can be **any 24-bit RGB color** — that's 16,777,216 distinct shades. The color is stored on-chain as a `uint24` (0xRRGGBB) inside the pixel itself, so the palette isn't capped to a curated set: pick a custom hex from the color picker, drop it in, done.
+
+The frontend ships with a quick-pick palette of common shades (red, blue, yellow, green, white, black, etc.) for fast painting, plus a hex input for arbitrary colors.
+
+This is how the "art layer" works. Players who don't want to fight build pixel art across multiple pixels — logos, characters, messages, memes. Some art pieces span hundreds of pixels.
+
+<Note>
+Pixel art only shows in Unaction mode. The moment you flip to Action, the rendered color switches to your faction color (so opponents can clearly see they're attacking a Red or Blue target). The custom hex stays stored on-chain — flipping back to Unaction restores it.
+</Note>
+
+## Strategic playstyles
+
+Most players develop a hybrid strategy:
+
+### The Warrior
+
+All pixels in Action mode. Aggressive expansion, constant battles, high risk / high reward. Best for players who love conflict.
+
+### The Artist
+
+All pixels in Unaction mode. Focus on building elaborate pixel art. Can't earn bounties, but pixels are permanent and safe.
+
+### The Strategist (most common)
+
+A handful of frontier pixels in Action mode (for the bounty hunting), backed by a deep "homeland" of Unaction pixels (untouchable territory that contributes to faction count).
+
+### The Sleeper
+
+Mint a few pixels in Unaction. Wait for V1.1. Configure an AI agent. Switch to Action with confidence that the AI will defend.
+
+## When to switch
+
+Common triggers:
+
+| Situation | Recommended mode |
+|---|---|
+| Just minted, still learning | Unaction |
+| Frontier pixel, near enemy territory | Action (defend or attack) |
+| Deep inside friendly territory | Action (the bounty is rarely contested) |
+| Building pixel art | Unaction |
+| Going on vacation | Unaction (V1.1 will let AI handle this) |
+| Faction is losing badly, want to help | Action (you boost defense by being a target) |
+
+## Why this matters
+
+The Action/Unaction split is what makes BasePixel a **game for both players and artists**. You don't have to fight to participate. You don't have to make art to win.
+
+The map is alive because both modes coexist on the same canvas. The art layer creates landmarks and meaning. The war layer creates tension and rewards.
+
+<Card title="Ready to fight?" icon="swords" href="/play/battle">
+  Learn how attacks work
+</Card>

@@ -1,0 +1,323 @@
+---
+title: 'Battle Engine'
+description: 'Off-chain battle simulation with on-chain settlement — protocol spec'
+---
+
+The Battle Engine is the off-chain server that runs the actual fight simulation. It exists because **9-unit, multi-round combat is too expensive to run on-chain**, but every input and output is anchored on-chain so that **anyone can replay a battle and verify the result**.
+
+This page is the protocol spec — what gets signed, what gets submitted, what gets stored where. If you're a player, you can skip to [Battle](/play/battle).
+
+## Design goals
+
+1. **Server-authoritative, publicly verifiable.** The Engine runs the fight, but the inputs (both layouts, both signatures, the random seed) and the signed replay are public. Anyone can rerun the simulator on the inputs and check that the Engine didn't lie.
+2. **No on-chain gas for players.** Players sign messages off-chain (EIP-712). The Engine pays gas for settlement and deducts it from the spoils.
+3. **Layouts stay private until combat.** Layouts are committed on-chain as a hash. The plaintext layout never goes on-chain — it goes from the player's wallet to the Engine, and shows up in the replay log only after the battle. Players can recover their plaintext on a fresh device via a signature-gated restore endpoint (see [Phase 1](#phase-1-commit-layout-setup)).
+4. **Deterministic.** Given the same inputs (both layouts, attacker pixel ID, defender pixel ID, random seed), the simulator must always produce the same output. No wall-clock, no `Math.random()`, no off-chain state.
+
+## Lifecycle
+
+<Frame>
+  <img src="/images/engineering/battle-lifecycle.svg" alt="Battle lifecycle: commit, intent, lock, reveal+simulate, settle" />
+</Frame>
+
+A battle proceeds through five phases. The first phase happens once per layout change; the other four happen for every battle.
+
+## Phase 1 — Commit (layout setup)
+
+A player sets or modifies their layout while in Unaction mode.
+
+**Off-chain (player's wallet or client):**
+```ts
+type Layout = {
+  // 9 slots, indexed 0–8 matching the 3×3 grid:
+  //  [0] [1] [2]   ← Wave 1 (left, center, right)
+  //  [3] [4] [5]   ← Wave 2
+  //  [6] [7] [8]   ← Wave 3
+  units: Array<'W' | 'A' | 'S'>; // length 9, exactly 3 of each
+};
+
+// Deterministic nonce — derived from a wallet signature so the player
+// never has to remember it. Re-derivable from the wallet alone.
+const nonce: Hex = keccak256(walletSignature("BasePixel.Layout.v1"));
+
+const layoutHash: Hex = keccak256(
+  abi.encode(units, nonce, pixelId)
+);
+```
+
+**On-chain:**
+```solidity
+function commitLayout(uint256 pixelId, bytes32 layoutHash) external;
+```
+
+The player submits `layoutHash` to the [PixelCoreFacet](/engineering/contracts). The plaintext layout is **never** sent on-chain — the player keeps it locally (and optionally backs it up encrypted).
+
+<Note>
+The nonce is derived from a fixed-message wallet signature. This makes the layout recoverable from the wallet alone — no separate backup needed — while still being unguessable to anyone who doesn't control the wallet.
+</Note>
+
+The client also POSTs the plaintext to the Engine's plaintext cache (`POST /api/layouts/:tokenId/plaintext`) so the simulator has it ready at lock time. If the player wipes localStorage on a different device, they can recover via:
+
+```http
+GET /api/layouts/:tokenId/plaintext?signature=...&deadline=...
+```
+
+The query is signed with EIP-191 (`personal_sign`) over `BasePixel.RestoreLayout.v1\ntokenId=:id\ndeadline=:ts`, proving the requester controls the wallet that owns the pixel. The signed window is short (5 minutes from `deadline`) so a leaked signature can't be replayed indefinitely.
+
+The local draft is keyed `basepixel:formation:v3:<tokenId>` and stores a single 9-slot units array — one pixel only ever has one faction, so no per-side split is needed.
+
+## Phase 2 — Intent (attack signature)
+
+When a player wants to attack, they sign an **attack intent** off-chain (EIP-712).
+
+```ts
+const AttackIntent = {
+  domain: {
+    name: 'BasePixel',
+    version: '1',
+    chainId: 8453,
+    verifyingContract: BATTLE_FACET_ADDRESS,
+  },
+  types: {
+    AttackIntent: [
+      { name: 'attackerPixelId', type: 'uint256' },
+      { name: 'defenderPixelId', type: 'uint256' },
+      { name: 'attackerLayoutHash', type: 'bytes32' },
+      { name: 'attackFee', type: 'uint256' }, // 0.0005 ETH in wei
+      { name: 'nonce', type: 'uint256' },     // anti-replay; per-attacker counter
+      { name: 'deadline', type: 'uint256' },  // unix seconds; intent expires after this
+    ],
+  },
+  message: { attackerPixelId, defenderPixelId, attackerLayoutHash, attackFee, nonce, deadline },
+};
+
+const signature = await wallet.signTypedData(AttackIntent);
+```
+
+The signed intent is submitted to the Engine via API:
+
+```http
+POST /v1/intents
+Content-Type: application/json
+
+{
+  "intent": { ...AttackIntent.message },
+  "signature": "0x...",
+  "layoutPlaintext": { "units": ["S","W","A","A","S","W","W","A","S"], "nonce": "0x..." }
+}
+```
+
+The Engine verifies:
+- Signature matches the attacker pixel's owner.
+- `keccak256(units, nonce, attackerPixelId) == attackerLayoutHash`.
+- `attackerLayoutHash` matches what's stored on-chain for that pixel.
+- Defender pixel is in Action mode and not currently locked in another battle.
+- Deadline hasn't passed.
+
+If any check fails, the Engine rejects with a structured error (see [Errors](#errors)).
+
+## Phase 3 — Lock (on-chain commit)
+
+Once the intent is validated, the **attacker submits the lock transaction directly** and pays the attack fee with the same call. There is no Engine-managed escrow and no `permit`-style approval — V1.1 simplified the fee path to "the attacker pays per battle, on-chain, in the same tx that locks the fight." The Engine's role at lock time is purely advisory (it had to sign off on the intent in Phase 2).
+
+The attacker calls:
+
+```solidity
+function lockBattle(
+  uint256 attackerPixelId,
+  uint256 defenderPixelId,
+  bytes32 attackerLayoutHash,
+  bytes calldata engineSignature
+) external payable returns (uint256 battleId);
+```
+
+This:
+- Requires `msg.value == attackFee` (currently 0.0005 ETH). The fee accrues to the eventual winner's spoils — no escrow held outside the battle's lifetime.
+- Verifies `engineSignature` was produced by the registered `ENGINE_SIGNER` over the `AttackIntent` hash (proves the Engine validated this intent in Phase 2).
+- Confirms the attacker owns `attackerPixelId` and that neither pixel is already in a battle (atomic check + set).
+- Sets `inBattle = true` for both pixels.
+- Emits `BattleLocked(battleId, attackerPixelId, defenderPixelId, attackerLayoutHash, defenderLayoutHash, lockedAt)`.
+
+**The defender's layout hash is read from on-chain storage at lock time.** That snapshot determines what the defender is committing to fight with — even if they switch to Unaction or change their layout afterward (they can't, because `inBattle = true` blocks edits), the locked hash is what the simulator will verify against.
+
+After the lock tx confirms in the wallet, the frontend POSTs the receipt's `BattleLocked` log to `POST /api/battles/notify-locked`. The backend decodes it locally (no `eth_getTransactionReceipt` round-trip), runs the eager simulation, and broadcasts the replay over SSE — see [Phase 4](#phase-4-simulate-stream).
+
+## Phase 4 — Simulate + Stream
+
+The Engine runs the simulation **eagerly** as soon as it sees `BattleLocked`. There is no separate "wait for defender to come online" phase — V1.1 requires both sides to have pre-uploaded their plaintext at commit time, so the Engine has both layouts in its plaintext cache the moment lock fires.
+
+Concretely, the indexer's `BattleLocked` handler:
+
+1. Loads attacker + defender plaintext from the in-process cache (warm path: ~10ms; cold path falls back to the Postgres `layout_plaintexts` table).
+2. Verifies each plaintext against its on-chain `layoutHash`.
+3. Runs the deterministic simulator (below) to produce the full `ReplayLog`.
+4. Persists `battle_steps` in a single batched multi-row INSERT and stamps `replay_hash` on the battles row.
+5. Broadcasts a `BattleStreamEvent::Simulated { battle }` payload over an in-process `tokio::sync::broadcast` bus.
+
+Connected SSE clients (`GET /api/battles/stream?battleId=:id`, edge-runtime) receive the full battle + replay almost immediately after the lock tx confirms. The stream emits a `connected` sentinel, then the `simulated` event, then a 5s keep-alive heartbeat. This replaces the older "wait for defender reveal then simulate" flow.
+
+If the defender never uploaded plaintext (rare — the formation editor uploads on commit), the eager-sim aborts, the resolver loop falls back to `defender forfeits → attacker wins` after the on-chain lock window expires.
+
+The simulator itself:
+
+```ts
+function simulate(input: SimulationInput): ReplayLog {
+  // Verify both hashes
+  assert(keccak256(input.attackerLayout, input.attackerNonce, input.attackerPixelId) === input.attackerLayoutHash);
+  assert(keccak256(input.defenderLayout, input.defenderNonce, input.defenderPixelId) === input.defenderLayoutHash);
+
+  // Random seed: bound to the lock event's block hash so the seed is verifiable
+  // without trusting the Engine, but unknown to either player at intent-signing time.
+  const seed = keccak256(input.lockBlockHash, input.battleId);
+  const rng = makeDeterministicRng(seed);
+
+  // Combat is Hearthstone-style mutual damage: every strike is simultaneous,
+  // so the target always swings back for `target.atk` damage — even ranged
+  // attackers (Archers) eat the counter, and even targets that just hit 0 HP
+  // still get their last lick in. Both attacker and target can die in the
+  // same step. See /play/battle for the full unit/damage table.
+
+  // ... runs the rules from /play/battle
+  return replayLog;
+}
+```
+
+The simulator is **pure** — no I/O, no clock, no global state. The exact same code is published as a public npm package (`@basepixel/simulator`) so anyone can rerun it.
+
+### Replay log format
+
+The Engine produces a structured replay log:
+
+```ts
+type ReplayLog = {
+  battleId: bigint;
+  attackerPixelId: bigint;
+  defenderPixelId: bigint;
+  attackerLayout: Layout;
+  defenderLayout: Layout;
+  lockBlockHash: Hex;
+  seed: Hex;
+
+  rounds: Array<{
+    roundNumber: number;
+    activeWave: { red: 1 | 2 | 3 | 4; blue: 1 | 2 | 3 | 4 };
+    steps: Array<ReplayStep>;
+  }>;
+
+  outcome: {
+    type: 'annihilation' | 'timeout' | 'draw' | 'forfeit';
+    winner: 'attacker' | 'defender';
+    finalHpRed: number;   // sum of surviving HP
+    finalHpBlue: number;
+  };
+};
+
+type ReplayStep = {
+  step: number;
+  side: 'red' | 'blue';
+  attackerSlot: 0..8;       // which of the 9 slots is acting
+  attackerUnit: 'W' | 'A' | 'S';
+  attackerHpBefore: number;
+  targetSlot: 0..8;
+  targetUnit: 'W' | 'A' | 'S';
+  targetHpBefore: number;
+  damageDealt: number;      // attacker → target
+  damageTaken: number;      // target → attacker (always == target.atk under the mutual-damage rule)
+  attackerHpAfter: number;
+  targetHpAfter: number;
+  killed: Array<0..8>;      // slots that hit 0 HP this step
+};
+```
+
+The log is canonicalized (JCS — JSON Canonicalization Scheme) and hashed:
+
+```ts
+const replayHash: Hex = keccak256(canonicalize(replayLog));
+```
+
+The Engine signs the hash with its dedicated `ENGINE_SIGNER` key. The full replay log is uploaded to long-term storage (S3 + IPFS pin), keyed by `battleId`.
+
+## Phase 5 — Settle (on-chain transfer)
+
+The Engine submits the result:
+
+```solidity
+function resolveBattle(
+  uint256 battleId,
+  bytes32 replayHash,
+  uint8 outcome,                 // 0=attackerWin, 1=defenderWin, 2=draw, 3=forfeit
+  string calldata replayUri,     // ipfs://... or https://...
+  bytes calldata engineSignature
+) external onlyEngine;
+```
+
+The contract:
+- Verifies `engineSignature` was produced by the registered `ENGINE_SIGNER`.
+- Stores `replayHash` and `replayUri` on-chain — anyone can fetch the log later and re-verify.
+- Performs the asset transfer based on `outcome`:
+  - `attackerWin` → defender's NFT and insurance pool transfer to attacker; the attack fee paid at lock joins the (now attacker-owned) pixel's insurance pool.
+  - `defenderWin` / `draw` → attacker's NFT and insurance pool transfer to defender; the attack fee accrues to the defender's insurance pool.
+- Clears `inBattle = false` for both pixels.
+- Starts the [24-hour redeem window](/play/redeem) for the loser.
+- Emits `BattleResolved(battleId, outcome, replayHash, replayUri)`.
+
+## Trust model
+
+The Engine is **server-authoritative but verifiable**, similar to Pirate Nation or Realm.gg:
+
+| Threat | Mitigation |
+|---|---|
+| Engine fakes the result | `replayHash` is on-chain; full log is public. Anyone can rerun `@basepixel/simulator` on the inputs and check that the hash matches. A mismatched hash is a verifiable cheat. |
+| Engine lies about a layout | The plaintext layout in the replay log must hash to the `layoutHash` already on-chain (committed at mint or last edit). Engine cannot fabricate a layout. |
+| Player swaps layout mid-battle | `inBattle = true` blocks layout edits. The defender's layout hash is snapshot at `lockBattle`. |
+| Player replays the same intent | EIP-712 nonce + per-attacker counter on-chain. Each intent usable once. |
+| Engine front-runs by predicting the seed | Seed = `keccak256(lockBlockHash, battleId)`. The block hash isn't known until the lock tx is mined, so neither player nor Engine can know the seed when the intent is signed. |
+| Defender goes offline to dodge | Plaintext was uploaded at commit time, so the Engine can simulate without the defender being online. If the upload is missing, the resolver falls back to forfeit → attacker wins after the lock window. |
+| Engine is offline | Battles can't start. Players are unaffected (no funds locked). On Engine restart, any locked-but-unresolved battles past their settlement deadline can be force-resolved by a guardian multisig. |
+
+The Engine **cannot**:
+- Steal NFTs (it can only call `resolveBattle` with a valid signed replay; the contract verifies the signature is from the registered `ENGINE_SIGNER` and atomically transfers per `outcome`).
+- Fabricate layouts (hash mismatch is detectable by anyone).
+- Bias outcomes (the simulator is public; replay log on-chain hash must match).
+
+The Engine **can** (and this is the residual trust):
+- Censor specific players (refuse to start their battles). Mitigation: open-source the Engine, support multiple Engine instances eventually.
+- Delay settlement (within the settlement deadline). Mitigation: published SLA + guardian fallback.
+
+## Errors
+
+```ts
+type EngineError =
+  | { code: 'INVALID_SIGNATURE' }
+  | { code: 'LAYOUT_HASH_MISMATCH'; expected: Hex; got: Hex }
+  | { code: 'PIXEL_NOT_OWNED' }
+  | { code: 'PIXEL_NOT_IN_ACTION' }
+  | { code: 'PIXEL_LOCKED_IN_BATTLE' }
+  | { code: 'INTENT_EXPIRED' }
+  | { code: 'INTENT_REPLAY' }
+  | { code: 'INSUFFICIENT_FEE' }
+  | { code: 'DEFENDER_FORFEIT_TIMEOUT' }
+  | { code: 'ENGINE_INTERNAL'; requestId: string };
+```
+
+All errors are returned with HTTP status codes and a `requestId` for support traceability. The full list is enforced by the Engine's OpenAPI spec.
+
+## What's stored where
+
+| Data | Location | Reason |
+|---|---|---|
+| Layout hash | On-chain (PixelCoreFacet) | Public commitment, can't be changed mid-battle |
+| Layout plaintext + nonce | Player's wallet + Engine cache | Private until reveal |
+| Attack intent + signature | Engine database (transient) | Used once, then archived |
+| Replay log (full) | IPFS + S3 backup | Long-term, anyone can verify |
+| Replay hash | On-chain (BattleFacet) | Verifiable anchor |
+| Battle outcome | On-chain (BattleFacet) | Source of truth for asset transfer |
+| Battle ID counter | On-chain | Guarantees unique, monotonic IDs |
+
+## Open implementation questions
+
+These are deferred to post-MVP, not blocking the spec:
+
+- **Engine high availability.** Single-instance today; multi-region active-passive after launch.
+- **Replay log retention.** Hot in S3 for 90 days, IPFS pinned indefinitely. Cost analysis at scale TBD.
+- **Anti-spam on attack intents.** Rate limit per wallet + the 0.0005 ETH cost itself acts as Sybil protection. Reassess after launch.

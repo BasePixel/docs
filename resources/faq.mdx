@@ -1,0 +1,199 @@
+---
+title: "FAQ"
+description: "Common questions about BasePixel"
+---
+
+## Game basics
+
+<AccordionGroup>
+  <Accordion title="How much does it cost to play?">
+    The minimum cost to enter is **0.001 ETH** (~$3 at current prices) to mint one pixel. After that, all interactions (toggling modes, painting colors) are just gas fees on Base — typically less than $0.01 per action.
+
+    Attacks cost 0.0005 ETH each, but you recover that amount from the bounty if you succeed. So aggressive play has zero net cost as long as your conquests succeed.
+  </Accordion>
+
+  <Accordion title="Can I lose all my money?">
+    No. The most you can lose per pixel is **half the mint price** (0.0005 ETH), which is what's locked in the bounty vault. If your pixel gets conquered, you lose that 0.0005 ETH.
+
+    The other 0.0005 ETH from the original mint went to the platform and isn't recoverable by anyone.
+
+    If you don't enter Action mode, you literally cannot lose money — Unaction pixels are immune to attacks.
+  </Accordion>
+
+  <Accordion title="Why two factions instead of more?">
+    Two factions create the cleanest dramatic conflict. Three or more factions tend to result in coalitions, betrayals, and strategic complexity that distracts from the core game.
+
+    Two factions also map perfectly to the binary visual language of pixels: Red or Blue, no in-between. The whole map becomes a gradient of conflict.
+  </Accordion>
+
+  <Accordion title="Can I switch factions?">
+    No. Once a pixel is minted as Red, it's Red forever. If you want to switch sides, you can mint new pixels in the opposite faction.
+
+    Some players run "spy" pixels — a few Blue pixels deep in Red territory — to gather intelligence and mess with enemy strategy. This is allowed.
+  </Accordion>
+
+  <Accordion title="Is there a max number of pixels I can own?">
+    No hard cap in MVP. Some players will own 1, others might own 10,000+.
+
+    In V1.2 we may introduce per-wallet caps to prevent runaway concentration. Will be discussed with the community before any change.
+  </Accordion>
+</AccordionGroup>
+
+## Strategy
+
+<AccordionGroup>
+  <Accordion title="What's the best mint location?">
+    **Frontier vs interior is the key choice:**
+
+    - **Interior pixels** (surrounded by your own faction) are extremely safe but rarely earn bounties. Good for collectors and artists.
+    - **Frontier pixels** are constantly contested. Higher risk, higher reward. Good for active players.
+    - **Behind enemy lines** (deep in opponent territory) are extremely risky but can disrupt enemy operations.
+
+    There's no "best" — it depends on your playstyle.
+  </Accordion>
+
+  <Accordion title="Should I focus on quantity or quality?">
+    Both strategies work:
+
+    - **Quantity:** Mint many pixels in a cluster, defend as a fortress. Strong against single-pixel attacks. Each lost pixel hurts less.
+    - **Quality:** Mint a few pixels in strategic locations, fortify with V1.1+ AI agents. Better ROI per pixel.
+
+    Most successful players use a mix — a defensive cluster + a few aggressive frontier scouts.
+  </Accordion>
+
+  <Accordion title="When should I redeem vs mint a new pixel?">
+    Redeem if:
+    - The pixel has bounty value (active battles have accumulated more than the default)
+    - It's strategically located (key chokepoint, art piece anchor)
+    - You can defend it after redemption
+
+    Mint a new one if:
+    - It was a low-value frontier pixel
+    - Your old position is now indefensible
+    - You found a better location to settle
+  </Accordion>
+
+  <Accordion title="Why isn't my attack working?">
+    Common reasons:
+
+    - **Target is in Unaction mode.** Unaction pixels are immune. Switch to a different target.
+    - **Target is same faction.** You can't attack your own side.
+    - **Target is locked in another battle.** Wait for it to resolve, then try again.
+    - **You don't have a layout committed.** Open the formation modal from the side panel and place 3W / 3A / 3S before fighting.
+    - **Your pixel not in Action.** Both attacker and defender must have Action mode enabled — and your pixel resets to Unaction after every transfer (battle, redeem, manual).
+    - **Insufficient ETH for the fee.** Each attack costs 0.0005 ETH `msg.value` on the lock transaction.
+  </Accordion>
+</AccordionGroup>
+
+## Technical
+
+<AccordionGroup>
+  <Accordion title="Where are the contracts?">
+    See the [Contracts](/resources/contracts) page for all deployed addresses on Base mainnet.
+
+    All contracts are verified on [BaseScan](https://basescan.org). Source code is in our [GitHub repo](https://github.com/basepixel).
+  </Accordion>
+
+  <Accordion title="What chain is this on?">
+    BasePixel runs on **Base** — Coinbase's L2 on Ethereum.
+
+    Why Base:
+    - Low gas fees (~$0.01 per transaction)
+    - Native Coinbase Wallet support
+    - Strong ecosystem for onchain consumer apps
+    - High throughput for active games
+
+    There are no current plans to deploy on other chains.
+  </Accordion>
+
+  <Accordion title="Are these real NFTs?">
+    Yes. Each pixel is a standard ERC-721 NFT, fully compliant with marketplaces like OpenSea, Blur, etc.
+
+    You can:
+    - View your pixels on OpenSea
+    - Trade pixels on secondary markets (without conquest)
+    - Use pixels in any NFT-compatible app
+
+    Note: secondary trading is enabled in MVP but may be restricted in some game modes (e.g., during active battles) in future versions.
+  </Accordion>
+
+  <Accordion title="How is the metadata generated?">
+    All NFT metadata (the image you see on OpenSea) is generated **on-chain** as SVG. There's no IPFS, no centralized server, no metadata API.
+
+    The contract has a `tokenURI()` function that reads your pixel's current state and generates a fresh image every time. So when your pixel gets conquered or repainted, OpenSea automatically reflects the new state.
+  </Accordion>
+
+  <Accordion title="Is the contract upgradeable?">
+    Yes, using the [ERC-2535 Diamond Standard](https://eips.ethereum.org/EIPS/eip-2535).
+
+    Why upgradeability:
+    - We can add new features (alliances, agents, seasons) without forcing players to migrate
+    - Bug fixes can be deployed without breaking existing pixels
+
+    Safety:
+    - All upgrades require multisig approval
+    - Critical changes go through a 48-hour timelock
+    - The community can monitor proposed upgrades on-chain before they activate
+  </Accordion>
+</AccordionGroup>
+
+## Tokens & money
+
+<AccordionGroup>
+  <Accordion title="Is there a $BASEPIXEL token?">
+    No. BasePixel runs entirely on ETH. There's no project token to buy, hold, or speculate on.
+
+    We may explore tokenization in V2+ if there's a clear utility (e.g., governance, agent staking), but only if it improves the game. We won't launch a token just to launch a token.
+  </Accordion>
+
+  <Accordion title="What does the platform fee go to?">
+    The 0.0005 ETH platform fee per mint covers:
+
+    - **Development.** Building V1.1+ features, bug fixes, security
+    - **Operations.** Hosting, RPC costs, frontend infrastructure
+    - **Audits.** External security reviews before major upgrades
+    - **Reserves.** Emergency funds in case of contract issues
+
+    We'll publish quarterly transparency reports on platform fee usage.
+  </Accordion>
+
+  <Accordion title="Can I make money playing?">
+    Possibly. The economy is **zero-sum** — for someone to win ETH, someone else has to lose it.
+
+    Profitable strategies usually involve:
+    - Identifying high-bounty pixels and conquering them efficiently
+    - Defending fortified positions where conquests cluster (each redemption sends you 0.00025 ETH)
+    - In V1.1, deploying well-tuned AI agents that play more efficiently than humans
+
+    But this is a game, not an investment. Most casual players will break even or lose a small amount. Don't put in money you can't afford to lose.
+  </Accordion>
+
+  <Accordion title="Is this gambling?">
+    No. The outcomes of attacks are deterministic (no randomness in MVP). You're not betting on chance — you're committing capital to a strategy game with skill-based outcomes.
+
+    That said, like any speculative activity, you can lose money if your strategy is bad. We strongly recommend treating BasePixel as entertainment, not income.
+  </Accordion>
+</AccordionGroup>
+
+## Community
+
+<AccordionGroup>
+  <Accordion title="How do I report a bug?">
+    Best to worst:
+
+    1. **GitHub Issues** for technical bugs
+    2. **Discord #bug-reports** for game / UI issues
+    3. **Twitter DM** for security-sensitive issues
+    4. **Email security@basepixel.io** for critical vulnerabilities (we have a bug bounty)
+  </Accordion>
+
+  <Accordion title="Can I join the team?">
+    We're a small core team and aren't actively hiring, but always interested in contributors. If you've built relevant projects (especially in onchain games or AI agents), DM us on Twitter.
+  </Accordion>
+
+  <Accordion title="Can I use BasePixel content for my own project / video / article?">
+    Yes — we encourage it. All branding assets (logo, banners, icons) are on our brand kit. Just don't claim affiliation with the team unless we've explicitly partnered.
+
+    Tagging us on Twitter is appreciated.
+  </Accordion>
+</AccordionGroup>

@@ -1,0 +1,373 @@
+---
+title: 'BattleFacet'
+description: 'Solidity interface for the on-chain battle settlement facet'
+---
+
+`BattleFacet` is the Diamond facet that handles **on-chain settlement of battles**. It does not run combat — that's the off-chain [Battle Engine](/engineering/battle-engine). What this facet does is: lock the two pixels, verify the Engine's signed result, and atomically transfer NFT + ETH to the winner.
+
+This page is the contract-level spec — function signatures, storage layout, events, errors, and security considerations. It's the input for the Solidity engineer, not the implementation.
+
+## Architecture
+
+<Frame>
+  <img src="/images/contracts/battle-facet-architecture.svg" alt="BattleFacet dependencies in the Diamond architecture" />
+</Frame>
+
+`BattleFacet` is one of ~10 facets behind the Diamond proxy. It depends on:
+
+- **PixelCoreFacet** — reads `layoutHash`, `isInAction`, NFT ownership.
+- **TreasuryFacet** — moves insurance pool ETH on resolve.
+- **RedeemFacet** — notified on resolve to start the 24h redeem window for the loser.
+- **OwnershipFacet** — manages the `ENGINE_SIGNER` authorized address.
+
+It writes to its own isolated storage namespace (`keccak256("basepixel.battle.v1")`) so upgrades don't collide with other facets.
+
+## Storage layout
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+library LibBattleStorage {
+    bytes32 internal constant STORAGE_SLOT = 
+        keccak256("basepixel.battle.v1");
+
+    enum Outcome { 
+        Unresolved,    // 0 — battle locked but not yet resolved
+        AttackerWin,   // 1
+        DefenderWin,   // 2
+        Draw,          // 3 — defender holds (per spec)
+        Forfeit        // 4 — defender plaintext unavailable → attacker wins
+    }
+
+    struct Battle {
+        uint256 attackerPixelId;
+        uint256 defenderPixelId;
+        bytes32 attackerLayoutHash;  // snapshot at lock time
+        bytes32 defenderLayoutHash;  // snapshot at lock time
+        bytes32 lockBlockHash;       // for deterministic seed
+        uint64 lockedAt;             // block.timestamp at lock
+        uint64 resolvedAt;           // 0 if unresolved
+        Outcome outcome;
+        bytes32 replayHash;          // canonical hash of the off-chain replay
+        // replayUri is emitted in events to keep storage cost down,
+        // not stored in the struct
+    }
+
+    struct Layout {
+        // battleId => Battle data
+        mapping(uint256 => Battle) battles;
+
+        // monotonically increasing battle counter
+        uint256 nextBattleId;
+
+        // pixelId => active battleId (0 if not in battle)
+        mapping(uint256 => uint256) activeBattleOf;
+
+        // EIP-712 nonces, anti-replay for attack intents
+        // attacker address => current nonce
+        mapping(address => uint256) intentNonces;
+
+        // Authorized off-chain Engine signer. Single key for MVP.
+        address engineSigner;
+
+        // Forfeit timeout in seconds (default 300 = 5 min from lock)
+        uint64 forfeitTimeout;
+
+        // Settlement deadline in seconds (default 3600 = 1h hard cap from lock).
+        // After this, guardians can force-resolve.
+        uint64 settlementDeadline;
+    }
+
+    function layout() internal pure returns (Layout storage l) {
+        bytes32 slot = STORAGE_SLOT;
+        assembly { l.slot := slot }
+    }
+}
+```
+
+<Note>
+**Why `lockBlockHash` is stored:** The Engine uses it as the random seed for the simulator (`keccak256(lockBlockHash, battleId)`). Storing it on-chain at lock time means anyone can later rerun the simulator with the same seed and verify the replay. This is the linchpin of public verifiability.
+</Note>
+
+## External functions
+
+### `lockBattle`
+
+Called by the **attacker** to commit a battle on-chain and pay the attack fee. The Engine has already validated and signed off on the intent in Phase 2; here the attacker just submits that signature alongside `msg.value == attackFee`.
+
+```solidity
+function lockBattle(
+    AttackIntent calldata intent,
+    bytes calldata engineSignature
+) external payable returns (uint256 battleId);
+```
+
+**Verifies:**
+
+1. `msg.sender == ownerOf(intent.attackerPixelId)` (attacker submits their own lock).
+2. `msg.value == intent.attackFee` (fee is paid in the same call — no escrow).
+3. `engineSignature` recovers to `engineSigner` over the EIP-712 `AttackIntent` digest (proves the Engine validated the intent in Phase 2).
+4. `intent.deadline >= block.timestamp` (intent not expired).
+5. `intent.nonce == intentNonces[attacker]` then increments it (anti-replay).
+6. Both pixels are in Action mode (read from PixelCoreFacet).
+7. Neither pixel is already locked (`activeBattleOf[pixelId] == 0`).
+8. `intent.attackerLayoutHash` matches the on-chain hash (sanity check; defender's hash is read fresh from PixelCoreFacet, not from the intent).
+
+**State changes:**
+
+- Allocates new `battleId = ++nextBattleId`.
+- Stores the `Battle` struct with both layout hashes, current `blockhash(block.number - 1)` as `lockBlockHash`, and `lockedAt = block.timestamp`.
+- Sets `activeBattleOf[attackerPixelId] = battleId` and `activeBattleOf[defenderPixelId] = battleId`.
+- Emits `BattleLocked`.
+
+**Reentrancy:** Function is `nonReentrant`. State updates happen before any external call (CEI pattern).
+
+### `resolveBattle`
+
+Called by the Engine after off-chain simulation completes. The Engine submits the canonical replay hash + outcome + a signed attestation.
+
+```solidity
+function resolveBattle(
+    uint256 battleId,
+    Outcome outcome,
+    bytes32 replayHash,
+    string calldata replayUri,
+    bytes calldata engineSignature
+) external;
+```
+
+**Verifies:**
+
+1. `battleId` exists and `battles[battleId].outcome == Unresolved`.
+2. `block.timestamp - lockedAt <= settlementDeadline` (otherwise this path is closed; only `forceResolveExpired` works).
+3. `engineSignature` is a valid signature by `engineSigner` over:
+   ```
+   keccak256(
+     "BasePixelEngineV1",
+     battleId,
+     outcome,
+     replayHash,
+     replayUri,
+     attackerLayoutHash,
+     defenderLayoutHash
+   )
+   ```
+4. `outcome != Unresolved` (Engine must commit to a real outcome).
+
+**State changes:**
+
+- Records `replayHash`, `outcome`, `resolvedAt = block.timestamp`.
+- Clears `activeBattleOf` for both pixels.
+- Performs asset transfer:
+  - **AttackerWin / Forfeit** → `_transferToWinner(attacker, defender)`: defender's NFT and insurance pool ETH transfer to attacker; the attack fee paid at lock joins the (now attacker-owned) pixel's insurance pool.
+  - **DefenderWin / Draw** → `_transferToWinner(defender, attacker)`: attacker's NFT and insurance pool ETH transfer to defender; the attack fee accrues to the defender's insurance pool.
+- Calls `IRedeemFacet(diamond).openRedeemWindow(loserPixelId, formerOwner, block.timestamp)`.
+- Emits `BattleResolved` with the full `replayUri` (so indexers can pin / fetch the log without an extra round-trip).
+
+**Reentrancy:** All NFT and ETH transfers go through TreasuryFacet, which uses pull-payment for ETH refunds (no direct `.transfer()` to attacker-controlled addresses on the hot path). NFT transfer uses `_transfer` (internal), which doesn't trigger `onERC721Received` — wallets cannot reject the transfer, and contracts that own pixels must implement that handler at mint time.
+
+### `forceResolveExpired`
+
+Fallback when the Engine fails to resolve within `settlementDeadline`. Called by the guardian multisig.
+
+```solidity
+function forceResolveExpired(
+    uint256 battleId,
+    Outcome outcome,
+    bytes32 replayHash,
+    string calldata replayUri
+) external; // onlyGuardian
+```
+
+**Behavior:**
+- Same effect as `resolveBattle` but bypasses Engine signature.
+- Only callable after `settlementDeadline` has passed since lock.
+- Guardian (3/5 multisig from OwnershipFacet) is the authorized caller.
+- Emits `BattleForceResolved(battleId, outcome, msg.sender)` so the use of guardian power is publicly visible.
+
+**Why this exists:** If the Engine goes down for hours, players' pixels would be permanently locked. The guardian path costs trust (multisig can theoretically misuse it) but bounds the worst-case to "delay + manual intervention" instead of "permanent freeze."
+
+### View functions
+
+```solidity
+function getBattle(uint256 battleId) external view returns (Battle memory);
+
+function activeBattleOf(uint256 pixelId) external view returns (uint256 battleId);
+
+function isLocked(uint256 pixelId) external view returns (bool);
+
+function getIntentNonce(address attacker) external view returns (uint256);
+
+function getEngineSigner() external view returns (address);
+```
+
+## Events
+
+```solidity
+event BattleLocked(
+    uint256 indexed battleId,
+    uint256 indexed attackerPixelId,
+    uint256 indexed defenderPixelId,
+    address attacker,
+    address defender,
+    bytes32 attackerLayoutHash,
+    bytes32 defenderLayoutHash,
+    bytes32 lockBlockHash,
+    uint256 lockedAt
+);
+
+event BattleResolved(
+    uint256 indexed battleId,
+    Outcome outcome,
+    address indexed winner,
+    address indexed loser,
+    bytes32 replayHash,
+    string replayUri,        // emitted in event, not stored
+    uint256 resolvedAt
+);
+
+event BattleForceResolved(
+    uint256 indexed battleId,
+    Outcome outcome,
+    address indexed guardian
+);
+
+event EngineSignerUpdated(
+    address indexed previousSigner,
+    address indexed newSigner
+);
+```
+
+<Note>
+**Indexing strategy:** Indexers (Ponder / The Graph) should listen to `BattleLocked` and `BattleResolved` to maintain a real-time view of active battles. `replayUri` is in the event, not storage — fetch the canonical log from there for replay UI.
+
+**Latency optimization:** The frontend doesn't wait for the indexer's `BattleLocked` poll. Once the lock tx confirms in the wallet, it POSTs the receipt's `BattleLocked` log to `POST /api/battles/notify-locked`. The Engine decodes the log locally (no `eth_getTransactionReceipt` round-trip), runs the eager simulation, and broadcasts the replay over SSE. Steady-state lock-to-first-frame is ~30ms.
+</Note>
+
+## Errors
+
+```solidity
+error BattleFacet__NotEngineSigner();
+error BattleFacet__InvalidIntentSignature();
+error BattleFacet__InvalidEngineSignature();
+error BattleFacet__IntentExpired(uint256 deadline, uint256 currentTime);
+error BattleFacet__IntentNonceMismatch(uint256 expected, uint256 got);
+error BattleFacet__PixelNotInAction(uint256 pixelId);
+error BattleFacet__PixelAlreadyLocked(uint256 pixelId, uint256 inBattleId);
+error BattleFacet__BattleNotFound(uint256 battleId);
+error BattleFacet__BattleAlreadyResolved(uint256 battleId);
+error BattleFacet__SettlementDeadlinePassed(uint256 lockedAt, uint256 deadline);
+error BattleFacet__SettlementDeadlineNotReached();  // for forceResolveExpired
+error BattleFacet__InvalidOutcome();
+error BattleFacet__SelfAttack();                    // attacker == defender
+error BattleFacet__InsufficientFee();
+error BattleFacet__LayoutHashMismatch(bytes32 expected, bytes32 got);
+```
+
+Custom errors (not `revert("...")`) for cheaper gas and easier indexer parsing.
+
+## EIP-712 typehashes
+
+```solidity
+bytes32 internal constant ATTACK_INTENT_TYPEHASH = keccak256(
+    "AttackIntent("
+        "uint256 attackerPixelId,"
+        "uint256 defenderPixelId,"
+        "bytes32 attackerLayoutHash,"
+        "uint256 attackFee,"
+        "uint256 nonce,"
+        "uint256 deadline"
+    ")"
+);
+
+bytes32 internal constant ENGINE_RESOLVE_TYPEHASH = keccak256(
+    "EngineResolve("
+        "uint256 battleId,"
+        "uint8 outcome,"
+        "bytes32 replayHash,"
+        "string replayUri,"
+        "bytes32 attackerLayoutHash,"
+        "bytes32 defenderLayoutHash"
+    ")"
+);
+
+// Domain separator follows EIP-712 standard:
+// keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+// name: "BasePixel", version: "1", verifyingContract: diamond proxy address
+```
+
+## Fee handling
+
+The 0.0005 ETH attack fee is paid **as `msg.value` directly to `lockBattle`** by the attacker. There is no per-pixel attack escrow, no `permit2` allowance, and no Engine-managed pool — the attacker's wallet pays per battle and the fee sits in the battle's storage until `resolveBattle` settles it.
+
+On resolve, the fee:
+
+- **AttackerWin / Forfeit** → joins the captured pixel's insurance pool (now under the attacker).
+- **DefenderWin / Draw** → joins the defender's insurance pool.
+
+This was simplified from the earlier escrow design after V1.1: keeping the fee path stateless on-chain removes the "top up your escrow before you can fight" friction at the cost of one extra ETH transfer per attack — a worthwhile trade at MVP scale.
+
+## Security considerations
+
+### Engine signer key compromise
+
+If `engineSigner`'s private key is stolen, the attacker can fabricate `resolveBattle` calls and steal NFTs.
+
+**Mitigations:**
+- `engineSigner` is updatable via OwnershipFacet (timelocked 48h, multisig 3/5). If compromise is detected, signer can be rotated.
+- Engine private key must live in HSM / KMS, not in environment variables.
+- Per-battle signature includes both layout hashes, so a stolen key can't fabricate battles for arbitrary pixels — it still has to produce a syntactically valid replay.
+- Future: V1.1 multi-signer setup where the `replayHash` requires N-of-M signatures from independent Engine instances.
+
+### Front-running `lockBattle`
+
+A malicious Engine could see the attack intent in the mempool and front-run it (e.g. by reordering battles to influence seeds). The attacker can't profit directly because they don't control outcomes, but ordering manipulation is theoretically possible.
+
+**Mitigation:** Engine submits via Flashbots / private mempool on Base. The seed is `keccak256(lockBlockHash, battleId)` — `lockBlockHash` is unpredictable until the tx is mined, so even ordering doesn't change the seed in a way Engine can exploit.
+
+### Reentrancy through TreasuryFacet
+
+`resolveBattle` calls TreasuryFacet to move ETH. TreasuryFacet uses pull-payment for any ETH that goes to a non-EOA address. The hot path (NFT transfer + state update) finishes **before** any external ETH transfer. NonReentrant guard on `resolveBattle` for belt-and-suspenders.
+
+### Layout hash collision
+
+The layout hash includes `pixelId` to prevent the same `(layout, nonce)` pair from being valid for multiple pixels:
+
+```
+layoutHash = keccak256(abi.encode(units, nonce, pixelId))
+```
+
+Without `pixelId`, an attacker could pre-compute a strong layout, get its hash committed for one cheap pixel, then claim the same hash on a more valuable pixel. Including `pixelId` defeats this.
+
+### Storage upgradeability
+
+`bytes32 STORAGE_SLOT = keccak256("basepixel.battle.v1")`. Future versions (`v2`) get a separate slot. Migration is explicit, never a silent overlay.
+
+The `Battle` struct itself **cannot be modified in-place** in a future facet — Solidity layouts changes shift everything. If the struct needs new fields, the migration path is:
+
+1. Deploy `BattleFacetV2` writing to a new storage namespace `keccak256("basepixel.battle.v2")`.
+2. Run a migration function to copy active battles forward.
+3. Replace the facet via DiamondCutFacet.
+
+## Test surface
+
+A minimum viable test suite covers:
+
+- **Lock**: valid intent, invalid signature, expired intent, replayed nonce, attacker not owner, attacker pixel locked, defender pixel locked, defender in Unaction, self-attack, insufficient fee.
+- **Resolve**: valid Engine signature, invalid signature, wrong battleId, already resolved, after settlement deadline, all four outcomes (AttackerWin, DefenderWin, Draw, Forfeit).
+- **ForceResolve**: before deadline (must revert), after deadline (must succeed), non-guardian caller (must revert).
+- **Asset transfers**: NFT ownership flips, insurance pools move, attack fee re-funds correctly, redeem window opens.
+- **Reentrancy**: malicious receiver tries to call back into `resolveBattle`, `lockBattle`, or any TreasuryFacet method — all must revert.
+- **Diamond integration**: storage isolation, function selector routing, upgrade replacing only `BattleFacet` doesn't break stored battles.
+
+Foundry property-based tests (`forge test --fuzz-runs 10000`) for the signature verification paths in particular.
+
+## Open implementation decisions
+
+These are intentionally left for the implementing engineer to choose, since they don't affect the interface:
+
+- **OpenZeppelin vs. Solady** for ECDSA / EIP-712 helpers (Solady is gas-cheaper but less audited; OZ is the safe default for MVP).
+- **Block hash availability**: `blockhash(block.number - 1)` is used; if the lock + simulation cycle could span > 256 blocks (unlikely on Base), the Engine must record the hash itself.
+- **Whether `replayUri` should be `bytes32` IPFS CID + ipfs:// prefix** instead of `string` (saves gas). Recommended once IPFS-only is locked in.
+- **Gas griefing on `forceResolveExpired`** if guardian is forced to resolve thousands of stuck battles after a long Engine outage. Add batch variant if real-world usage demands.

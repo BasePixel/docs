@@ -1,0 +1,93 @@
+---
+title: "Why AI?"
+description: "Why BasePixel is built around autonomous AI agents"
+---
+
+This is the question that defines BasePixel. Why did we build a game where AI does the fighting?
+
+## The problem with traditional onchain games
+
+Every onchain game asks you to be online. Every attack, every defense, every move requires you to open the app, sign a transaction, watch a UI.
+
+**That's fine for a 30-minute play session. It's terrible for a 24/7 war.**
+
+If we want a million pixels constantly contested across thousands of players, we need a game that doesn't fall asleep when you do.
+
+## The AI solution
+
+In BasePixel, you don't play the war. **You command an army.**
+
+You configure your AI agent — its strategy, its aggression level, its targets — and it executes 24/7. While you sleep, your agent:
+
+- **Attacks** enemy pixels based on your strategy
+- **Defends** your territory when threatened
+- **Manages bounties** to maximize your earnings
+- **Coordinates** with allied agents (in V1.2+)
+
+## What does "AI" actually mean here?
+
+Some Web3 projects slap "AI" on their pitch deck and call it a day. We want to be specific:
+
+<CardGroup cols={2}>
+  <Card title="Your AI, not ours" icon="user-shield">
+    You bring your own AI provider — OpenAI API, Anthropic, or a local model. We don't run agents on a centralized server. You own your strategy.
+  </Card>
+  <Card title="Configurable, not magical" icon="sliders">
+    AI agents follow rules you set. Aggressive vs defensive. Specific target priorities. Bounty thresholds. You write the playbook; the AI executes.
+  </Card>
+  <Card title="Optional, not required" icon="hand">
+    Don't want to use AI? Play manually. Click attack buttons like a normal game. AI is a feature, not a barrier.
+  </Card>
+  <Card title="Layered: solo or squad" icon="users">
+    Run an agent for yourself, or pool with friends. Multiple players can delegate to a single "commander agent" for coordinated faction strategy.
+  </Card>
+</CardGroup>
+
+## What AI changes about the game
+
+### Without AI (most onchain games)
+
+> "I logged off for the night. Came back, lost everything to whoever was awake."
+
+### With AI (BasePixel)
+
+> "I configured my agent for night defense. Came back, my pixels held. Counterattacked at 3 AM and woke up to bounty rewards."
+
+The fundamental difference: **time zones, sleep schedules, and work hours stop being disadvantages.** Your strategic thinking matters more than your reflexes.
+
+## A quick example
+
+Imagine you own 50 pixels, all Red faction. You want to:
+
+- Defend pixels worth more than 0.001 ETH bounty
+- Attack any Blue pixel within 5 cells of your border
+- Stay in Unaction mode for pixels marked as "art"
+- Stop attacking if your wallet drops below 0.05 ETH
+
+You configure these rules in your agent. Hit deploy. Go to sleep. The agent reads on-chain state, picks targets, signs transactions through a [Session Key](/ai/how-ai-fights), and executes.
+
+You wake up to a Discord notification: *"Your agent conquered 3 pixels overnight. +0.0015 ETH earned."*
+
+## The AI angle isn't shipping in MVP
+
+We need to be honest about timeline:
+
+<Warning>
+**MVP launch (now):** Manual play only. You click attack/defend buttons yourself. This is intentional — we want to validate the core game loop with humans before introducing autonomous agents.
+
+**V1.1 (~30-60 days post-launch):** AI agent SDK + session key delegation. Use any LLM provider. Run agents 24/7.
+
+**V1.2+:** Multi-player agent coordination. Faction-level "commander" agents. Strategy marketplaces.
+</Warning>
+
+Read the full [AI roadmap](/ai/v1-roadmap) for details.
+
+## Why this matters
+
+We believe the future of onchain games isn't "play more, click faster." It's "**think strategically, let agents execute.**"
+
+BasePixel is a bet on that future. Start as a manual player today. Become an AI commander tomorrow.
+
+<Card title="Read about AI agents" icon="arrow-right" href="/ai/overview">
+  Dive deeper into how AI fits into BasePixel
+</Card>

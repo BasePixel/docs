@@ -1,0 +1,178 @@
+---
+title: "How AI fights for you"
+description: "The technical mechanics of agent delegation and execution"
+---
+
+<Warning>
+**This describes V1.1 design.** AI is not yet live in MVP. Some details may change before launch.
+</Warning>
+
+## The architecture
+
+A BasePixel agent has three layers:
+
+<img src="/images/ai-architecture.svg" alt="Three-layer architecture: strategy decides what to do, session key signs transactions, BasePixel contract enforces game rules." />
+
+Each layer has clear boundaries. Your strategy can be anything (a 10-line if/else or a fine-tuned LLM); the session key can only do what you explicitly authorized; the contract enforces game rules regardless.
+
+## Session keys explained
+
+A session key is a **temporary wallet** with limited permissions, delegated by your main wallet.
+
+Think of it as giving your agent a **debit card** instead of your bank password:
+
+- The card can only be used at BasePixel.io
+- The card has a daily spending limit (e.g., 0.05 ETH/day)
+- You can revoke the card anytime
+- Your real wallet is never exposed
+
+We use [ERC-4337 Smart Accounts](https://eips.ethereum.org/EIPS/eip-4337) and the Coinbase Smart Wallet infrastructure, which natively supports session keys on Base.
+
+### Permissions you can set
+
+When you create a session key for an agent, you specify:
+
+| Permission | Example |
+|---|---|
+| **Allowed contracts** | Only the BasePixel Diamond contract |
+| **Allowed functions** | `attack`, `redeem`, `toggleAction` (not `transferFrom`) |
+| **Spending cap** | Max 0.05 ETH per day |
+| **Time limit** | Auto-expire after 30 days (you renew manually) |
+| **Per-tx max** | No single tx > 0.001 ETH |
+
+If your agent gets compromised, the worst case is **0.05 ETH lost in a day** (one day's budget) before you revoke. Your main wallet, NFTs, and other tokens are untouchable.
+
+## The strategy layer
+
+This is where you (or your AI) make decisions. Some examples:
+
+### Tier 1: Rule-based (no LLM)
+
+```
+IF any of my pixels under attack:
+   redeem if previous-owner window still open
+   else mint replacement nearby
+ELSE IF enemy pixel within 5 cells with bounty > 0.001:
+   attack it
+ELSE:
+   wait
+```
+
+You configure these rules in our UI. The agent runs them every minute.
+
+### Tier 2: LLM-assisted
+
+```python
+# Pseudocode
+context = read_battlefield_state()
+prompt = f"""
+You are a BasePixel commander. Your faction is Red.
+Current state:
+- My pixels: {context['my_pixels']}
+- Enemy pixels nearby: {context['enemies']}
+- My budget: {context['budget']}
+
+What's the optimal next move? Reply in JSON.
+"""
+decision = llm.complete(prompt)
+execute(decision)
+```
+
+The LLM sees the full battlefield and proposes actions. We provide a Python/TypeScript SDK that wraps the on-chain reads and writes.
+
+### Tier 3: Custom
+
+You write whatever you want — a reinforcement learning model trained on historical battles, a hand-tuned heuristic, a multi-agent system. We expose:
+
+- TypeScript SDK with full contract bindings
+- Battlefield state subscriptions (event streams)
+- Simulation environment for backtesting
+- Public APIs for inspecting your performance
+
+## How an agent "lives"
+
+Your agent runs **somewhere you control**:
+
+<CardGroup cols={3}>
+  <Card title="Browser tab" icon="window">
+    Easiest. Open basepixel.io, deploy agent, leave the tab running. Free, but stops if you close the browser.
+  </Card>
+  <Card title="Local script" icon="terminal">
+    Run our SDK on your laptop. More control, but stops when you close your laptop.
+  </Card>
+  <Card title="Cloud server" icon="cloud">
+    Run on a $5/month VPS or AWS Lambda. Agents run 24/7 without you. Best for serious players.
+  </Card>
+</CardGroup>
+
+We'll provide one-click deploy templates for popular cloud providers (Railway, Fly.io, Vercel).
+
+## Reading state, signing actions
+
+Here's a simplified flow of what an agent does each tick:
+
+```typescript
+// Pseudocode
+async function tick(agent) {
+  // 1. Read on-chain state
+  const myPixels = await contract.getMyPixels(agent.owner);
+  const targets = await scanForTargets(myPixels);
+
+  // 2. Apply strategy
+  const decision = await agent.strategy.decide({
+    myPixels,
+    targets,
+    budget: agent.dailyBudgetRemaining,
+  });
+
+  // 3. Execute (if any action)
+  if (decision.action === 'attack') {
+    await contract.attack.send({
+      attackerId: decision.attackerId,
+      targetId: decision.targetId,
+      sessionKey: agent.sessionKey,
+    });
+  }
+}
+
+// Run every minute
+setInterval(() => tick(agent), 60_000);
+```
+
+The actual SDK will be more sophisticated (event-driven, batching, gas optimization), but this captures the core loop.
+
+## Safety guarantees
+
+The contract enforces game rules **regardless of what the agent does**:
+
+- ✓ Can't attack pixels currently locked in another battle
+- ✓ Can't attack same-faction pixels
+- ✓ Can't attack Unaction pixels (or fight without a committed layout)
+- ✓ Can't transfer pixels (session keys are restricted to game functions)
+- ✓ Can't drain your wallet (per-tx and daily caps)
+- ✓ Can't act after you revoke the session key
+
+So even a buggy or malicious agent can only **waste your daily budget** within the game's rules. It cannot steal, transfer, or deny you access to your assets.
+
+## Cost economics
+
+Running an agent has three cost components:
+
+| Cost | Typical amount | Who pays |
+|---|---|---|
+| **AI inference** (Tier 2 only) | $0.05 - $0.50 / day | You (your API key) |
+| **Gas** (transactions on Base) | ~$0.01 / action | You (from session key budget) |
+| **Hosting** (cloud server) | $0 - $10 / month | You |
+
+If your agent earns more in bounties than it spends, you're profitable. If your strategy is bad, you lose money — fast. **The market is the teacher.**
+
+## Coming features (V1.2+)
+
+- **Strategy marketplace.** Sell or rent your proven strategy to other players (revenue share).
+- **Faction commanders.** Aggregate multiple players' pixels under one strategic agent.
+- **Tournament mode.** Sandboxed brackets where agents compete head-to-head.
+- **Strategy NFTs.** Mint your strategy config as a tradeable NFT.
+
+<Card title="Roadmap details" icon="map" href="/ai/v1-roadmap">
+  See the full V1.1 → V2 plan
+</Card>

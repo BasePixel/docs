@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 420" width="680" height="420">
+  <title>BasePixel AI agent architecture</title>
+  <desc>Three-layer architecture for AI agents: strategy layer decides actions, session key signs transactions with bounded permissions, and the BasePixel contract enforces game rules on Base.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- Layer 1: Strategy -->
+  <g>
+    <rect x="60" y="30" width="560" height="90" rx="10" fill="#F5F5F4" stroke="#D6D3D1" stroke-width="0.5"/>
+    <rect x="80" y="48" width="56" height="22" rx="4" fill="#FFFFFF" stroke="#D6D3D1" stroke-width="0.5"/>
+    <text x="108" y="60" text-anchor="middle" dominant-baseline="central" font-family="Roboto Mono, monospace" font-size="10" font-weight="500" fill="#78716C" letter-spacing="0.5">LAYER 1</text>
+    <text x="156" y="60" dominant-baseline="central" font-family="Inter Tight, system-ui, sans-serif" font-size="15" font-weight="500" fill="#1C1917">Strategy</text>
+    <text x="80" y="90" font-family="Inter Tight, system-ui, sans-serif" font-size="12" fill="#57534E">Your config, your LLM, your code</text>
+    <text x="80" y="106" font-family="Inter Tight, system-ui, sans-serif" font-size="11" fill="#A8A29E" font-style="italic">decides: "what should I do next?"</text>
+  </g>
+
+  <!-- Arrow 1 -> 2 -->
+  <line x1="340" y1="120" x2="340" y2="148" stroke="#A8A29E" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Layer 2: Session Key -->
+  <g>
+    <rect x="60" y="155" width="560" height="90" rx="10" fill="#F5F5F4" stroke="#D6D3D1" stroke-width="0.5"/>
+    <rect x="80" y="173" width="56" height="22" rx="4" fill="#FFFFFF" stroke="#D6D3D1" stroke-width="0.5"/>
+    <text x="108" y="185" text-anchor="middle" dominant-baseline="central" font-family="Roboto Mono, monospace" font-size="10" font-weight="500" fill="#78716C" letter-spacing="0.5">LAYER 2</text>
+    <text x="156" y="185" dominant-baseline="central" font-family="Inter Tight, system-ui, sans-serif" font-size="15" font-weight="500" fill="#1C1917">Session key</text>
+    <text x="80" y="215" font-family="Inter Tight, system-ui, sans-serif" font-size="12" fill="#57534E">Delegated wallet with bounded permissions</text>
+    <text x="80" y="231" font-family="Inter Tight, system-ui, sans-serif" font-size="11" fill="#A8A29E" font-style="italic">executes: signs transactions on your behalf</text>
+  </g>
+
+  <!-- Arrow 2 -> 3 -->
+  <line x1="340" y1="245" x2="340" y2="273" stroke="#A8A29E" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Layer 3: Contract -->
+  <g>
+    <rect x="60" y="280" width="560" height="90" rx="10" fill="#E0EDFF" stroke="#0000FF" stroke-width="0.5"/>
+    <rect x="80" y="298" width="56" height="22" rx="4" fill="#FFFFFF" stroke="#0000FF" stroke-width="0.5"/>
+    <text x="108" y="310" text-anchor="middle" dominant-baseline="central" font-family="Roboto Mono, monospace" font-size="10" font-weight="500" fill="#0033A8" letter-spacing="0.5">LAYER 3</text>
+    <text x="156" y="310" dominant-baseline="central" font-family="Inter Tight, system-ui, sans-serif" font-size="15" font-weight="500" fill="#0033A8">BasePixel contract on Base</text>
+    <text x="80" y="340" font-family="Inter Tight, system-ui, sans-serif" font-size="12" fill="#1851D6">Enforces game rules regardless of agent</text>
+    <text x="80" y="356" font-family="Inter Tight, system-ui, sans-serif" font-size="11" fill="#1851D6" font-style="italic">verifies: cooldowns, ownership, spend caps</text>
+  </g>
+</svg>

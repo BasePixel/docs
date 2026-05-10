@@ -1,0 +1,104 @@
+---
+title: "Contracts"
+description: "Deployed contract addresses on Base"
+---
+
+All BasePixel contracts are deployed on **Base mainnet** (chain ID 8453) and verified on [BaseScan](https://basescan.org).
+
+## Main contract
+
+The Diamond contract is the entry point for all interactions.
+
+| Property | Value |
+|---|---|
+| **Diamond** | `0x0000000000000000000000000000000000000000` |
+| **Network** | Base (chain ID 8453) |
+| **Standard** | ERC-2535 Diamond + ERC-721 |
+| **Source code** | [GitHub](https://github.com/basepixel/contracts) |
+
+## Audit reports
+
+Audit reports will be linked here once available. We're targeting completion before mainnet launch.
+
+## How to interact directly
+
+If you want to call the contract without our frontend:
+
+### Read pixel state
+
+```typescript
+import { createPublicClient, http } from 'viem';
+import { base } from 'viem/chains';
+
+const client = createPublicClient({
+  chain: base,
+  transport: http(),
+});
+
+// Get pixel data by tokenId (tokenId = x * 1000 + y)
+const pixelData = await client.readContract({
+  address: DIAMOND_ADDRESS,
+  abi: PIXEL_ABI,
+  functionName: 'getPixel',
+  args: [tokenId],
+});
+```
+
+### Mint a pixel
+
+```typescript
+import { createWalletClient, custom, parseEther } from 'viem';
+
+const walletClient = createWalletClient({
+  chain: base,
+  transport: custom(window.ethereum),
+});
+
+// Mint pixel at (x, y) for faction (1=Red, 2=Blue) with a 24-bit RGB color
+// (e.g. 0xFC401F = brand red). The color is stored on-chain and shown when
+// the pixel is in Unaction mode.
+const tokenId = BigInt(x * 1000 + y);
+const color = 0xfc401f;
+const hash = await walletClient.writeContract({
+  address: DIAMOND_ADDRESS,
+  abi: PIXEL_ABI,
+  functionName: 'mint',
+  args: [tokenId, faction, color],
+  value: parseEther('0.001'),
+});
+```
+
+### Subscribe to events
+
+```typescript
+client.watchContractEvent({
+  address: DIAMOND_ADDRESS,
+  abi: PIXEL_ABI,
+  eventName: 'PixelAttacked',
+  onLogs: (logs) => {
+    console.log('Battle happened:', logs);
+  },
+});
+```
+
+The full event surface emitted by `PixelFacet`:
+
+| Event | Trigger |
+|---|---|
+| `PixelMinted(tokenId, owner, faction, color)` | New mint |
+| `PixelAttacked(tokenId, attacker, previousOwner, fromFaction, toFaction, bountyClaimed)` | Successful conquest |
+| `PixelRedeemed(tokenId, redeemer, previousOwner)` | 24h redemption |
+| `ActionToggled(tokenId, enabled)` | Action ↔ Unaction flip |
+| `ColorSet(tokenId, color)` | Custom color update (Unaction only) |
+| `BountyTopped(tokenId, newBounty)` | Owner refilled the bounty back to 0.0005 ETH |
+
+Plus the standard ERC-721 `Transfer(from, to, tokenId)` and `Approval` events from `ERC721Facet`.
+
+## Security
+
+- All contracts are **immutable per facet** (you can't change a facet's bytecode). Upgrades work by deploying new facets and routing function calls.
+- All upgrades require **multisig + 48-hour timelock**.
+- The community can monitor proposed upgrades on-chain before they activate.
+- We have a **bug bounty program** (see [Security Policy](https://github.com/basepixel/.github/security)).
+
+If you find a critical security issue, please email **security@basepixel.io** before public disclosure.

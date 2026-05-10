@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 480" font-family="Inter Tight, system-ui, sans-serif">
+  <rect width="880" height="480" fill="#FFFFFF"/>
+
+  <text x="440" y="32" text-anchor="middle" font-size="14" font-weight="600" fill="#5B616E" letter-spacing="2">BATTLEFACET — DEPENDENCIES &amp; DATA FLOW</text>
+
+  <!-- Diamond proxy at top -->
+  <g transform="translate(360, 60)">
+    <rect width="160" height="50" rx="6" fill="#0A0B0D" stroke="#0A0B0D"/>
+    <text x="80" y="22" text-anchor="middle" font-size="10" font-weight="700" fill="#FFFFFF" letter-spacing="1.5">DIAMOND PROXY</text>
+    <text x="80" y="38" text-anchor="middle" font-size="9" fill="#B1B7C3">routes selectors → facets</text>
+  </g>
+
+  <!-- Routing arrows down -->
+  <path d="M 440 115 L 440 145" stroke="#B1B7C3" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#a2)"/>
+
+  <!-- Center: BattleFacet (highlighted) -->
+  <g transform="translate(330, 150)">
+    <rect width="220" height="120" rx="8" fill="#FEE7E0" stroke="#FC401F" stroke-width="2"/>
+    <text x="110" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#FC401F" letter-spacing="1.5">BATTLEFACET</text>
+    <line x1="20" y1="32" x2="200" y2="32" stroke="#FC401F" stroke-width="0.5" opacity="0.4"/>
+    <text x="20" y="50" font-size="10" font-weight="600" fill="#5B616E">External:</text>
+    <text x="20" y="64" font-size="9" fill="#717886">  lockBattle()</text>
+    <text x="20" y="76" font-size="9" fill="#717886">  resolveBattle()</text>
+    <text x="20" y="88" font-size="9" fill="#717886">  forceResolveExpired()</text>
+    <text x="20" y="106" font-size="10" font-weight="600" fill="#5B616E">View:</text>
+    <text x="115" y="106" font-size="9" fill="#717886">getBattle(), isLocked()</text>
+  </g>
+
+  <!-- Left: PixelCoreFacet (provides layout hash + ownership) -->
+  <g transform="translate(40, 165)">
+    <rect width="200" height="90" rx="6" fill="#F5F5F4" stroke="#5B616E" stroke-width="1.5"/>
+    <text x="100" y="20" text-anchor="middle" font-size="10" font-weight="700" fill="#5B616E" letter-spacing="1">PIXELCOREFACET</text>
+    <line x1="20" y1="28" x2="180" y2="28" stroke="#5B616E" stroke-width="0.5" opacity="0.3"/>
+    <text x="100" y="46" text-anchor="middle" font-size="9" fill="#717886">ERC-721 ownership</text>
+    <text x="100" y="60" text-anchor="middle" font-size="9" fill="#717886">layoutHash[pixelId]</text>
+    <text x="100" y="74" text-anchor="middle" font-size="9" fill="#717886">isInAction[pixelId]</text>
+  </g>
+
+  <!-- Right: TreasuryFacet (handles fund transfer) -->
+  <g transform="translate(640, 165)">
+    <rect width="200" height="90" rx="6" fill="#F5F5F4" stroke="#5B616E" stroke-width="1.5"/>
+    <text x="100" y="20" text-anchor="middle" font-size="10" font-weight="700" fill="#5B616E" letter-spacing="1">TREASURYFACET</text>
+    <line x1="20" y1="28" x2="180" y2="28" stroke="#5B616E" stroke-width="0.5" opacity="0.3"/>
+    <text x="100" y="46" text-anchor="middle" font-size="9" fill="#717886">insurancePool[pixelId]</text>
+    <text x="100" y="60" text-anchor="middle" font-size="9" fill="#717886">transferOnVictory()</text>
+    <text x="100" y="74" text-anchor="middle" font-size="9" fill="#717886">refundEscrow()</text>
+  </g>
+
+  <!-- Bottom: RedeemFacet -->
+  <g transform="translate(340, 310)">
+    <rect width="200" height="60" rx="6" fill="#F5F5F4" stroke="#5B616E" stroke-width="1.5"/>
+    <text x="100" y="20" text-anchor="middle" font-size="10" font-weight="700" fill="#5B616E" letter-spacing="1">REDEEMFACET</text>
+    <text x="100" y="40" text-anchor="middle" font-size="9" fill="#717886">openRedeemWindow()</text>
+    <text x="100" y="52" text-anchor="middle" font-size="9" fill="#717886">24h timer starts on resolve</text>
+  </g>
+
+  <!-- Connections from BattleFacet -->
+  <!-- to PixelCoreFacet (read) -->
+  <path d="M 330 210 L 240 210" stroke="#FC401F" stroke-width="1.5" marker-end="url(#a2)"/>
+  <text x="285" y="203" text-anchor="middle" font-size="9" fill="#717886" font-style="italic">read</text>
+
+  <!-- to TreasuryFacet (call on resolve) -->
+  <path d="M 550 210 L 640 210" stroke="#FC401F" stroke-width="1.5" marker-end="url(#a2)"/>
+  <text x="595" y="203" text-anchor="middle" font-size="9" fill="#717886" font-style="italic">call on resolve</text>
+
+  <!-- to RedeemFacet (notify) -->
+  <path d="M 440 270 L 440 308" stroke="#FC401F" stroke-width="1.5" marker-end="url(#a2)"/>
+  <text x="455" y="294" font-size="9" fill="#717886" font-style="italic">notify</text>
+
+  <!-- Engine signer (off-chain caller) -->
+  <g transform="translate(40, 395)">
+    <rect width="240" height="50" rx="6" fill="#E0EDFF" stroke="#0000FF" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="120" y="20" text-anchor="middle" font-size="10" font-weight="700" fill="#0000FF" letter-spacing="1">ENGINE_SIGNER (off-chain)</text>
+    <text x="120" y="36" text-anchor="middle" font-size="9" fill="#717886">authorized via OwnershipFacet</text>
+  </g>
+
+  <path d="M 280 420 Q 320 420 360 280 L 380 270" stroke="#0000FF" stroke-width="1.5" stroke-dasharray="4 3" fill="none" marker-end="url(#a2)"/>
+  <text x="270" y="380" font-size="9" fill="#717886" font-style="italic">only EOA allowed to call</text>
+  <text x="270" y="392" font-size="9" fill="#717886" font-style="italic">lockBattle / resolveBattle</text>
+
+  <!-- Storage namespace note -->
+  <g transform="translate(580, 395)">
+    <rect width="260" height="50" rx="6" fill="#F5F5F4" stroke="#B1B7C3" stroke-width="1"/>
+    <text x="130" y="18" text-anchor="middle" font-size="9" fill="#717886" font-weight="600">Storage: keccak256("basepixel.battle.v1")</text>
+    <text x="130" y="32" text-anchor="middle" font-size="9" fill="#717886">Each facet uses isolated namespace</text>
+    <text x="130" y="44" text-anchor="middle" font-size="9" fill="#717886">→ no slot collision, upgrade-safe</text>
+  </g>
+
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#B1B7C3"/>
+    </marker>
+  </defs>
+</svg>

@@ -1,0 +1,81 @@
+---
+title: "How it works"
+description: "The core game loop in 4 actions"
+---
+
+BasePixel has four core actions. That's it. Master these and you understand the entire game.
+
+## The core loop
+
+<img src="/images/core-loop.svg" alt="BasePixel core loop: mint a pixel, enable action mode, attack or defend, then redeem if lost within 24 hours." />
+
+## The economy
+
+Every pixel costs **0.001 ETH** to mint. That ETH is split:
+
+| Where it goes | Amount |
+|---|---|
+| **Bounty Vault** (locked in the pixel) | 0.0005 ETH |
+| **Platform** (ops + dev) | 0.0005 ETH |
+
+The Bounty Vault is the key innovation. **Every pixel has 0.0005 ETH locked inside, waiting to be claimed by whoever conquers it.**
+
+## What happens when you conquer a pixel
+
+<Steps>
+  <Step title="You pay the conquest fee">
+    Send 0.0005 ETH to attack. This refills the bounty vault for the next attacker.
+  </Step>
+  <Step title="You take the old bounty">
+    The 0.0005 ETH that was locked in the conquered pixel is now yours.
+  </Step>
+  <Step title="You own the pixel">
+    The NFT transfers to your wallet. Faction color flips to yours. You can now defend it (or paint it).
+  </Step>
+</Steps>
+
+**Net cost: 0 ETH.** You pay 0.0005, you receive 0.0005. You walked away with a new pixel for free.
+
+## What happens when you lose a pixel
+
+Your pixel just got attacked. You have **24 hours** to reclaim it before the new owner can fortify.
+
+<Steps>
+  <Step title="Pay the redemption fee">
+    Send 0.0005 ETH within 24 hours of losing it.
+  </Step>
+  <Step title="Compensation goes to the conqueror">
+    0.00025 ETH goes to whoever just took it from you.
+  </Step>
+  <Step title="The pixel returns to your wallet">
+    Faction flips back. Status resets to Unaction (you decide when to re-enter the war).
+  </Step>
+</Steps>
+
+## Action vs Unaction
+
+Every pixel has a switch:
+
+<CardGroup cols={2}>
+  <Card title="Action mode" icon="swords" iconType="duotone">
+    **Warrior mode.** You can attack enemies. They can attack you. The bounty is at stake.
+  </Card>
+  <Card title="Unaction mode" icon="palette" iconType="duotone">
+    **Artist mode.** Immune to attacks. Can't attack others. Paint the pixel any 24-bit RGB color (16.7M shades).
+  </Card>
+</CardGroup>
+
+<Tip>
+You can toggle modes anytime, with no cost. Some players run a few pixels in Action and the rest as art. Some build entire pixel art pieces and never fight. Both are valid playstyles.
+</Tip>
+
+## Continue reading
+
+<CardGroup cols={2}>
+  <Card title="Why AI?" icon="robot" href="/introduction/why-ai">
+    The AI angle is the heart of BasePixel. Here's why.
+  </Card>
+  <Card title="Mint your first pixel" icon="play" href="/play/mint">
+    Step-by-step guide to your first action.
+  </Card>
+</CardGroup>

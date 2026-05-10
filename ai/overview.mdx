@@ -1,0 +1,127 @@
+---
+title: "AI Agents Overview"
+description: "The future of BasePixel: autonomous warriors fighting 24/7"
+---
+
+<Warning>
+**MVP status:** AI agents are not yet live. The MVP launches with manual play only. AI agents arrive in V1.1, ~30-60 days after MVP launch.
+
+This page describes the planned design. Specifics may evolve based on MVP feedback.
+</Warning>
+
+## The vision
+
+Most onchain games require constant attention. BasePixel is built differently. The endgame is simple: **you should be able to leave for a week and come back to a pixel empire that fought without you.**
+
+AI agents make this possible. You don't sit at the keyboard clicking attack buttons. You configure rules, deploy an agent, and it executes 24/7 — attacking enemies, defending territory, managing bounties.
+
+## What an agent does
+
+A BasePixel agent is software that:
+
+1. **Reads** on-chain state (your pixels, enemy pixels, current bounties, faction stats)
+2. **Decides** what action to take (attack, defend, redeem, toggle modes) based on your strategy
+3. **Signs** transactions through a delegated session key
+4. **Submits** them to the Base network
+
+The agent runs on your hardware (laptop, server, or cloud), not ours. **You control your strategy, your AI provider, your costs.**
+
+## Three agent tiers
+
+We're designing three levels of agent sophistication:
+
+<CardGroup cols={3}>
+  <Card title="Tier 1: Rule-based" icon="list-check">
+    No LLM needed. Configure simple rules in our UI:
+    - "Attack pixels with bounty ≥ X"
+    - "Defend pixels in this zone"
+    - "Stop when wallet < Y ETH"
+
+    Free to run. Best for beginners.
+  </Card>
+  <Card title="Tier 2: LLM-assisted" icon="brain">
+    Bring your own API (OpenAI, Anthropic, etc.). The agent uses an LLM to:
+    - Analyze battlefield state
+    - Identify opportunities
+    - Adjust tactics dynamically
+
+    Costs: your API usage (~$0.10/day for active play).
+  </Card>
+  <Card title="Tier 3: Custom" icon="code">
+    Bring your own code. We expose the SDK; you write the strategy. Could be a custom RL model, a hand-tuned algorithm, or a multi-agent swarm.
+
+    For developers and serious players.
+  </Card>
+</CardGroup>
+
+## What you control
+
+Even the most autonomous agent should feel like an extension of *your* strategy. Configurable parameters:
+
+| Parameter | Example values |
+|---|---|
+| **Aggression** | Conservative / Balanced / Aggressive |
+| **Budget cap** | Max ETH to spend per day |
+| **Targets** | Specific pixels, zones, or factions |
+| **Triggers** | Defend if attacked, attack if bounty > X |
+| **Schedule** | Active hours, sleep windows |
+| **Coordination** | Solo, or join a faction commander |
+
+## How agents stay safe
+
+We're building agents to be **bounded and revocable**:
+
+- **Session keys with limits.** Your agent uses a delegated wallet that can only call BasePixel contracts, only with capped amounts. Even if compromised, the damage is limited.
+- **Revocation anytime.** Pause or kill your agent in one click. You always retain master control of your real wallet.
+- **Spend caps.** You set a daily budget. The agent literally cannot spend more.
+- **Simulation mode.** Test your agent's behavior on a simulated battlefield before deploying real capital.
+
+## Why bring-your-own AI
+
+We considered running agents on a centralized server. We rejected it for three reasons:
+
+<CardGroup cols={2}>
+  <Card title="No vendor lock-in" icon="lock-open">
+    Use OpenAI today, Anthropic tomorrow, a local model next year. Your strategy isn't tied to our infrastructure.
+  </Card>
+  <Card title="No platform risk" icon="shield">
+    If we go down, your agent doesn't. You keep playing. The contract is autonomous; agents are decentralized.
+  </Card>
+  <Card title="No surveillance" icon="eye-slash">
+    Your strategy stays private. We don't see your prompts, your AI's reasoning, or your tactics.
+  </Card>
+  <Card title="Real cost transparency" icon="receipt">
+    You pay your AI provider directly. We don't mark up API costs or run a "credits" system.
+  </Card>
+</CardGroup>
+
+## Multi-player coordination
+
+The most interesting agents won't play solo. Imagine:
+
+- A **faction commander** agent coordinates 50 players' pixels into a unified strategy
+- An **alliance** of friends pool their pixels, sharing one strategy and splitting rewards
+- A **guild** rents out a top-tier strategy to subscribers (with revenue share)
+
+These mechanics are V1.2+. But the architecture is being designed now to support them.
+
+## When does this ship?
+
+<Steps>
+  <Step title="MVP launch (now)">
+    Manual play. AI not yet enabled.
+  </Step>
+  <Step title="V1.1 (~30-60 days)">
+    Tier 1 (rule-based) and Tier 2 (LLM) agents go live. Session key delegation. SDK published.
+  </Step>
+  <Step title="V1.2 (~3 months)">
+    Multi-player coordination. Faction commanders. Strategy marketplaces.
+  </Step>
+  <Step title="V1.3+">
+    Strategy NFTs (sellable agent configs). Cross-game agent portability. Tournament modes.
+  </Step>
+</Steps>
+
+<Card title="Read the technical details" icon="book" href="/ai/how-ai-fights">
+  How session keys, delegation, and rule engines work under the hood
+</Card>

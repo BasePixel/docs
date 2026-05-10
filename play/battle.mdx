@@ -1,0 +1,90 @@
+---
+title: "Battle: Attack & Defend"
+description: "How 9-unit formation combat works on BasePixel"
+---
+
+Combat is **9-unit formation warfare**. Both pixels field a 3×3 squad, the units swing in waves until one side is wiped out, and the surviving side takes the contested pixel. There's no manual control during the fight — your strategy lives in the **layout** you committed beforehand.
+
+## What you need to attack
+
+1. **Your own pixel** in Action mode with a committed layout
+2. **An enemy target** in Action mode with its own committed layout (Unaction pixels are immune)
+3. **0.0005 ETH** to pay the attack fee — paid as `msg.value` on the lock transaction (no escrow)
+
+When you press attack, the flow is:
+
+1. The Engine validates your intent and signs off on it (off-chain).
+2. **You** submit `lockBattle` and pay the 0.0005 ETH attack fee in the same call.
+3. The Engine simulates the fight off-chain the moment the lock event fires (eager simulation; both layouts were uploaded at commit time).
+4. The full replay streams to your screen over SSE — usually within ~30ms of the lock confirming.
+5. The Engine submits `resolveBattle` on-chain, transferring the NFT and insurance pool to the winner.
+
+## The 9-unit formation
+
+Each side has a 3×3 grid (9 slots). Slots are arranged in three waves:
+
+```
+[0] [1] [2]   ← Wave 1 (front line)
+[3] [4] [5]   ← Wave 2
+[6] [7] [8]   ← Wave 3 (rear)
+```
+
+You fill exactly **3 of each unit**: 3 Warriors, 3 Archers, 3 Shields.
+
+| Code | Class   | ATK | HP | Notes |
+|------|---------|-----|----|-------|
+| **W**    | Warrior | 4   | 12 | Balanced bruiser |
+| **A**    | Archer  | 3   | 10 | Lower HP, fires from distance (animation only — combat math is symmetric) |
+| **S**    | Shield  | 2   | 16 | Tankiest body |
+
+Wave 1 fights Wave 1. When either side's wave is fully dead, the next wave steps up. Battle ends when one side is annihilated, both sides are wiped (defender holds), or 30 rounds elapse (defender holds).
+
+## Outcomes
+
+| Outcome | Meaning | Result |
+|---|---|---|
+| **AttackerWin** | Defender's 9 units all dead, attacker has survivors | Attacker takes the pixel |
+| **DefenderWin** | Attacker's 9 units all dead, defender has survivors | Defender keeps the pixel |
+| **Draw** | Both sides annihilated in the same step (mutual KO) | **Defender holds** — by spec |
+| **Timeout** | 30 rounds reached, both sides still alive | **Defender holds** — by spec |
+| **Forfeit** | Defender's plaintext layout is missing from the Engine | Attacker wins by default |
+
+Forfeit is rare in practice — the formation editor uploads the plaintext to the Engine the moment you commit, so the layout is cached and ready before any attack ever lands.
+
+## What transfers when the attacker wins
+
+<Steps>
+  <Step title="The NFT moves to the attacker's wallet">
+    The pixel's faction color flips. The map updates as soon as the indexer picks up `BattleResolved`.
+  </Step>
+  <Step title="The defender's insurance pool transfers to the attacker">
+    Whatever ETH was bonded inside the captured pixel comes along with it.
+  </Step>
+  <Step title="The 0.0005 ETH attack fee joins the new owner's insurance pool">
+    The fee you paid at lock time isn't burned — it tops up the pixel you just captured.
+  </Step>
+  <Step title="The captured pixel resets to Unaction">
+    `actionEnabled` is cleared on transfer, so you choose when to re-arm and re-commit a layout.
+  </Step>
+  <Step title="The 24h redeem window opens for the loser">
+    The previous owner can buy the pixel back at premium for 24h — see [Redeem](/play/redeem).
+  </Step>
+</Steps>
+
+## What transfers when the defender wins or the battle draws
+
+The attacker's pixel transfers to the **defender** — it's symmetric. Lose the fight and you lose the pixel you attacked from. The 0.0005 ETH attack fee accrues to the defender's insurance pool. The same 24h redeem window opens for the attacker on the lost pixel.
+
+This is the load-bearing part of the design: **attacking is a real risk**. You're not paying 0.0005 ETH for a one-way coin flip — you're putting your attacker pixel up against the defender's, and a misjudged matchup costs you the NFT.
+
+## Strategy: where formations matter
+
+Since combat is deterministic given the inputs, the layout is the entire strategy surface:
+
+- **Wave ordering.** Front-loading Shields buys time for your DPS to pile on. Front-loading Warriors maximizes opening burst but you lose tanks early.
+- **Mutual damage discipline.** A Warrior trading into a Shield (4 dmg vs 2 dmg counter) is favorable; a Shield trading into a Warrior (2 dmg vs 4 dmg counter) loses the exchange.
+- **Initiative randomness.** The 50/50 coin flip means a single round can swing on luck. Build redundancy — don't bet the fight on a single Warrior surviving Wave 1.
+
+<Card title="Lost a pixel? You have 24 hours" icon="clock-rotate-left" href="/play/redeem">
+  Learn how to redeem
+</Card>
