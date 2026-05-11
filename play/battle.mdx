@@ -9,7 +9,7 @@ Combat is **9-unit formation warfare**. Both pixels field a 3×3 squad, the unit
 
 1. **Your own pixel** in Action mode with a committed layout
 2. **An enemy target** in Action mode with its own committed layout (Unaction pixels are immune)
-3. **0.0005 ETH** to pay the attack fee — paid as `msg.value` on the lock transaction (no escrow)
+3. **0.001 ETH** to pay the attack fee — paid as `msg.value` on the lock transaction (no escrow). The fee is the entire prize pot for the fight; the winner takes 90 % of it as cash, the protocol rakes 10 %.
 
 When you press attack, the flow is:
 
@@ -51,31 +51,42 @@ Wave 1 fights Wave 1. When either side's wave is fully dead, the next wave steps
 
 Forfeit is rare in practice — the formation editor uploads the plaintext to the Engine the moment you commit, so the layout is cached and ready before any attack ever lands.
 
+## Platform commission
+
+The 0.001 ETH attack fee is the entire prize pot. The protocol takes a flat **10 % rake** on every settled battle (regardless of outcome), and the winner takes the rest as cash:
+
+| Outcome | Winner | Winner cash | Platform rake | NFT transfer |
+|---|---|---|---|---|
+| AttackerWin / Forfeit | Attacker | 0.0009 ETH | 0.0001 ETH | Defender's pixel → Attacker |
+| DefenderWin | Defender | 0.0009 ETH | 0.0001 ETH | Attacker's pixel → Defender |
+| Draw | Defender (holds) | 0.0009 ETH | 0.0001 ETH | None — defender keeps own pixel |
+
+There is **no per-pixel insurance bond** any more. Every pixel ships from mint with zero ETH locked inside; what you stake on a battle is the attack fee and the NFT itself. This was simplified from the v1.1 model after we realised the persistent bond was effectively a constant — every Action-mode pixel always sat at 0.0005 ETH and the contract just shuffled it between captures.
+
 ## What transfers when the attacker wins
 
 <Steps>
   <Step title="The NFT moves to the attacker's wallet">
     The pixel's faction color flips. The map updates as soon as the indexer picks up `BattleResolved`.
   </Step>
-  <Step title="The defender's insurance pool transfers to the attacker">
-    Whatever ETH was bonded inside the captured pixel comes along with it.
-  </Step>
-  <Step title="The 0.0005 ETH attack fee joins the new owner's insurance pool">
-    The fee you paid at lock time isn't burned — it tops up the pixel you just captured.
+  <Step title="The attacker takes 90 % of the attack fee as cash">
+    0.0009 ETH lands in the attacker's wallet. The protocol pockets the remaining 0.0001 ETH as commission.
   </Step>
   <Step title="The captured pixel resets to Unaction">
-    `actionEnabled` is cleared on transfer, so you choose when to re-arm and re-commit a layout.
+    `actionEnabled` is cleared on transfer, so you choose when to re-arm and re-commit a layout. The pixel comes with no bonded ETH — toggling Action again costs only gas.
   </Step>
   <Step title="The 24h redeem window opens for the loser">
-    The previous owner can buy the pixel back at premium for 24h — see [Redeem](/play/redeem).
+    The previous owner can buy the pixel back for 0.0005 ETH within 24h — see [Redeem](/play/redeem).
   </Step>
 </Steps>
 
 ## What transfers when the defender wins or the battle draws
 
-The attacker's pixel transfers to the **defender** — it's symmetric. Lose the fight and you lose the pixel you attacked from. The 0.0005 ETH attack fee accrues to the defender's insurance pool. The same 24h redeem window opens for the attacker on the lost pixel.
+**DefenderWin** — the attacker's pixel transfers to the defender. The defender takes 0.0009 ETH cash (90 % of the attack fee). The same 24h redeem window opens for the attacker on the lost pixel.
 
-This is the load-bearing part of the design: **attacking is a real risk**. You're not paying 0.0005 ETH for a one-way coin flip — you're putting your attacker pixel up against the defender's, and a misjudged matchup costs you the NFT.
+**Draw** — defender holds the contested pixel. The defender still pockets 0.0009 ETH as stalemate compensation, the protocol rakes 0.0001 ETH. Nothing changes hands NFT-wise.
+
+This is the load-bearing part of the design: **attacking is a real risk**. You're not paying 0.001 ETH for a one-way coin flip — you're putting your attacker pixel up against the defender's, and a misjudged matchup costs you the NFT plus the full fee.
 
 ## Strategy: where formations matter
 

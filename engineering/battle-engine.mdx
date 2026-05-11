@@ -255,8 +255,10 @@ The contract:
 - Verifies `engineSignature` was produced by the registered `ENGINE_SIGNER`.
 - Stores `replayHash` and `replayUri` on-chain — anyone can fetch the log later and re-verify.
 - Performs the asset transfer based on `outcome`:
-  - `attackerWin` → defender's NFT and insurance pool transfer to attacker; the attack fee paid at lock joins the (now attacker-owned) pixel's insurance pool.
-  - `defenderWin` / `draw` → attacker's NFT and insurance pool transfer to defender; the attack fee accrues to the defender's insurance pool.
+  - `attackerWin` / `forfeit` → defender's NFT and insurance pool transfer to attacker; the attack fee paid at lock refills the captured pixel's insurance pool back to the 0.0005 ETH floor.
+  - `defenderWin` → attacker's NFT and insurance pool transfer to defender; the attack fee is paid to the defender as cash.
+  - `draw` → defender holds the contested pixel; the attack fee is paid to the defender as cash (no NFT transfer).
+- Skims a **20% platform commission** off the ETH that would otherwise flow to the winner's wallet (the "cash spoils" — defender's pre-battle insurance pool on AttackerWin, attacker's pre-battle pool plus the attack fee on DefenderWin). Draw is a push and pays no commission. The captured pool's seed slice is **not** in the tax base, preserving the 0.0005 floor needed to re-enable Action without a top-up.
 - Clears `inBattle = false` for both pixels.
 - Starts the [24-hour redeem window](/play/redeem) for the loser.
 - Emits `BattleResolved(battleId, outcome, replayHash, replayUri)`.

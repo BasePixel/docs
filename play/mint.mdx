@@ -54,7 +54,6 @@ Your minted pixel is an ERC-721 NFT with these properties:
 |---|---|
 | **Coordinates** | Permanent (e.g. 458, 312) |
 | **Faction** | Permanent (Red or Blue) |
-| **Insurance pool** | 0.0005 ETH (locked in the pixel — captured by the winner of any battle) |
 | **Layout** | None at mint — commit a 9-unit formation before fighting |
 | **Status** | Unaction (default — you decide when to fight) |
 | **Color** | Faction color in Action mode; any 24-bit RGB in Unaction mode |
@@ -65,11 +64,10 @@ When you mint for 0.001 ETH:
 
 ```
 0.001 ETH (mint price)
-   ├── 0.0005 ETH → Insurance pool (locked in this pixel)
-   └── 0.0005 ETH → Platform (ops + dev)
+   └── 0.001 ETH → Platform (ops + dev)
 ```
 
-The 0.0005 ETH in the insurance pool is what makes your pixel valuable. **If someone conquers your pixel, they take this ETH along with the NFT.** If you defend successfully (or never enter Action mode), it stays bonded to the pixel.
+V1.2 retired the per-pixel insurance bond, so the entire mint price flows to the protocol treasury. Battle stakes come from the per-battle attack fee instead — see [Battle](/play/battle).
 
 ## What happens next?
 

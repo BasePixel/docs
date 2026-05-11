@@ -299,14 +299,15 @@ bytes32 internal constant ENGINE_RESOLVE_TYPEHASH = keccak256(
 
 ## Fee handling
 
-The 0.0005 ETH attack fee is paid **as `msg.value` directly to `lockBattle`** by the attacker. There is no per-pixel attack escrow, no `permit2` allowance, and no Engine-managed pool — the attacker's wallet pays per battle and the fee sits in the battle's storage until `resolveBattle` settles it.
+The 0.001 ETH attack fee is paid **as `msg.value` directly to `lockBattle`** by the attacker. The fee is the entire prize pot for the fight — there is no per-pixel insurance pool, no escrow, no permit allowance.
 
-On resolve, the fee:
+On resolve, the contract splits the fee uniformly across all four outcomes:
 
-- **AttackerWin / Forfeit** → joins the captured pixel's insurance pool (now under the attacker).
-- **DefenderWin / Draw** → joins the defender's insurance pool.
-
-This was simplified from the earlier escrow design after V1.1: keeping the fee path stateless on-chain removes the "top up your escrow before you can fight" friction at the cost of one extra ETH transfer per attack — a worthwhile trade at MVP scale.
+| Outcome | Winner | Winner cash | Platform rake |
+|---|---|---|---|
+| AttackerWin / Forfeit | Attacker | 0.0009 ETH | 0.0001 ETH |
+| DefenderWin | Defender | 0.0009 ETH | 0.0001 ETH |
+| Draw | Defender (holds) | 0.0009 ETH | 0.0001 ETH |
 
 ## Security considerations
 
